@@ -43,14 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentUser, isAdmin, getUsers, addUser, removeUser } from '@/lib/auth';
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'user';
-  password?: string;
-};
+import type { User, UserRole } from '@/lib/types';
 
 function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
   const { toast } = useToast();
@@ -58,7 +51,7 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
-  const [role, setRole] = React.useState<'admin' | 'user'>('user');
+  const [role, setRole] = React.useState<UserRole>('viewer');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,8 +66,8 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
     
     const result = addUser({ name, email, password, role });
     
-    if (result.success) {
-      onUserAdded(result.user!);
+    if (result.success && result.user) {
+      onUserAdded(result.user);
       toast({
         title: "User Added",
         description: `User ${name} has been created successfully.`,
@@ -83,7 +76,7 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
       setName('');
       setEmail('');
       setPassword('');
-      setRole('user');
+      setRole('viewer');
       setOpen(false);
     } else {
        toast({
@@ -135,12 +128,13 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
               <Label htmlFor="role" className="text-right">
                 Role
               </Label>
-              <Select value={role} onValueChange={(value) => setRole(value as 'admin' | 'user')}>
+              <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="data-entry-operator">Data Entry Operator</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
@@ -169,12 +163,17 @@ export default function UsersPage() {
       return;
     }
      if (user.role !== 'admin') {
+      toast({
+        variant: 'destructive',
+        title: 'Access Denied',
+        description: 'You must be an admin to view this page.',
+      });
       router.push('/dashboard');
       return;
     }
     setCurrentUser(user);
     setUsers(getUsers());
-  }, [router]);
+  }, [router, toast]);
 
   const handleUserAdded = (newUser: User) => {
     setUsers(prev => [...prev, newUser]);
@@ -205,8 +204,15 @@ export default function UsersPage() {
     }
   };
 
-  if (!isAdmin()) {
-    return <div className="flex items-center justify-center h-full"><p>Access Denied. You must be an admin to view this page.</p></div>;
+  const [showPage, setShowPage] = React.useState(false);
+  React.useEffect(() => {
+    if (isAdmin()) {
+      setShowPage(true);
+    }
+  }, []);
+
+  if (!showPage) {
+    return null; 
   }
   
   return (
@@ -239,13 +245,13 @@ export default function UsersPage() {
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
                   <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
-                    {user.role}
+                    {user.role.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
+                      <Button aria-haspopup="true" size="icon" variant="ghost" disabled={user.id === currentUser?.id}>
                         <MoreHorizontal className="h-4 w-4" />
                         <span className="sr-only">Toggle menu</span>
                       </Button>

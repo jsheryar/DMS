@@ -63,7 +63,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Document } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser, isAdmin } from '@/lib/auth';
+import { getCurrentUser, isAdmin, isDataEntryOperator } from '@/lib/auth';
 import { addLog } from '@/lib/logs';
 
 const initialDocuments: Document[] = [
@@ -411,6 +411,8 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<Re
             setStoredValue(valueToStore);
             if (typeof window !== 'undefined') {
                 window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                 // Manually dispatch a storage event so other tabs can update.
+                window.dispatchEvent(new StorageEvent('storage', { key }));
             }
         } catch (error) {
             console.log(error);
@@ -426,14 +428,17 @@ function DashboardPageContent() {
   const tab = searchParams.get('tab');
   const [documents, setDocuments] = useLocalStorage<Document[]>('documents', initialDocuments);
   const [categories, setCategories] = useLocalStorage<string[]>('categories', initialCategories);
-  const [showAdminFeatures, setShowAdminFeatures] = React.useState(false);
+  const [isAdminOrOperator, setIsAdminOrOperator] = React.useState(false);
+  const [isAdminUser, setIsAdminUser] = React.useState(false);
 
   React.useEffect(() => {
     const user = getCurrentUser();
     if (!user) {
       router.push('/');
     } else {
-      setShowAdminFeatures(user.role === 'admin');
+        const admin = isAdmin();
+        setIsAdminUser(admin);
+        setIsAdminOrOperator(admin || isDataEntryOperator());
     }
   }, [router]);
   
@@ -496,12 +501,12 @@ function DashboardPageContent() {
             ))}
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
-             {showAdminFeatures && (
-              <>
-                <ManageCategoriesDialog categories={categories} setCategories={setCategories} />
-                <UploadDocumentDialog categories={categories} onUpload={handleUpload} />
-              </>
-            )}
+             {isAdminUser && (
+              <ManageCategoriesDialog categories={categories} setCategories={setCategories} />
+             )}
+             {isAdminOrOperator && (
+              <UploadDocumentDialog categories={categories} onUpload={handleUpload} />
+             )}
           </div>
         </div>
         <TabsContent value="all">

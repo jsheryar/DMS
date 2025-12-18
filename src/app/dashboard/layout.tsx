@@ -26,7 +26,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { isAdmin } from '@/lib/auth';
+import { isAdmin, getCurrentUser } from '@/lib/auth';
 import React from 'react';
 import { getBrandingSettings, type BrandingSettings } from '@/lib/branding';
 import Image from 'next/image';
@@ -55,13 +55,13 @@ function BrandingDisplay() {
   return (
     <div className="flex items-center gap-4">
       {settings.logoUrl ? (
-        <Image src={settings.logoUrl} alt="Department Logo" width={36} height={36} className="h-9 w-9 object-contain" />
+        <Image src={settings.logoUrl} alt="Department Logo" width={40} height={40} className="h-10 w-10 object-contain" />
       ) : (
-         <div className="h-9 w-9 rounded-lg bg-primary/20 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+         <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7 text-primary"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
          </div>
       )}
-      <span className="font-semibold text-xl hidden md:block">{settings.departmentName || 'DocuSafe'}</span>
+      <span className="font-semibold text-2xl hidden md:block">{settings.departmentName || 'DocuSafe'}</span>
     </div>
   );
 }
@@ -73,9 +73,15 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [showAdminLinks, setShowAdminLinks] = React.useState(false);
+  const [showUploadLink, setShowUploadLink] = React.useState(false);
 
   React.useEffect(() => {
-    setShowAdminLinks(isAdmin());
+    const user = getCurrentUser();
+    if(user) {
+      const admin = user.role === 'admin';
+      setShowAdminLinks(admin);
+      setShowUploadLink(admin || user.role === 'data-entry-operator');
+    }
   }, []);
 
   const navLinks = [
@@ -83,8 +89,11 @@ export default function DashboardLayout({
     { href: '/dashboard/letters', icon: FileText, label: 'Letters' },
     { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
     { href: '/dashboard/notesheets', icon: StickyNote, label: 'Notesheets' },
-    { href: '/dashboard/upload', icon: Upload, label: 'Upload' },
   ];
+
+  if (showUploadLink) {
+    navLinks.push({ href: '/dashboard/upload', icon: Upload, label: 'Upload' });
+  }
 
   const adminLinks = [
     { href: '/dashboard/users', icon: Users, label: 'Manage Users' },

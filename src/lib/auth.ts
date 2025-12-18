@@ -1,7 +1,7 @@
 
 'use client';
 import { addLog } from './logs';
-import type { User } from './types';
+import type { User, UserRole } from './types';
 
 // IMPORTANT: This is a mock authentication system for local development and demonstration.
 // It is NOT secure and should NOT be used in a production environment.
@@ -12,7 +12,8 @@ const SESSION_KEY = 'mock_user_session';
 
 const initialMockUsers: User[] = [
   { id: '1', name: 'Admin User', email: 'admin@example.com', password: 'password123', role: 'admin' },
-  { id: '2', name: 'John Doe', email: 'johndoe@example.com', password: 'password123', role: 'user' },
+  { id: '2', name: 'John Doe', email: 'johndoe@example.com', password: 'password123', role: 'viewer' },
+  { id: '3', name: 'Data Entry', email: 'data@example.com', password: 'password123', role: 'data-entry-operator' },
 ];
 
 // --- User Data Management ---
@@ -27,6 +28,8 @@ export const getUsers = (): User[] => {
       return JSON.parse(usersJson);
     } catch (e) {
       console.error("Failed to parse users from localStorage", e);
+      // If parsing fails, reset to initial users
+      localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(initialMockUsers));
       return initialMockUsers;
     }
   }
@@ -47,7 +50,7 @@ export const addUser = (user: Omit<User, 'id'>) => {
   if (existingUser) {
     return { success: false, message: 'User with this email already exists.' };
   }
-  const newUser = { ...user, id: String(Date.now()) };
+  const newUser: User = { ...user, id: String(Date.now()) };
   const updatedUsers = [...users, newUser];
   setUsers(updatedUsers);
   addLog('User Added', { newUserId: newUser.id, newUserEmail: newUser.email });
@@ -120,7 +123,7 @@ export const getCurrentUser = (): User | null => {
 };
 
 // This is a helper function to check if the current user has a specific role.
-export const hasRole = (role: 'admin' | 'user') => {
+export const hasRole = (role: UserRole) => {
   const user = getCurrentUser();
   return user && user.role === role;
 };
@@ -128,4 +131,8 @@ export const hasRole = (role: 'admin' | 'user') => {
 // A specific check for admin privileges, which can be used to protect certain UI elements or actions.
 export const isAdmin = () => {
   return hasRole('admin');
+};
+
+export const isDataEntryOperator = () => {
+  return hasRole('data-entry-operator');
 };

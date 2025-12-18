@@ -19,10 +19,12 @@ export type UserLog = {
   details?: Record<string, any>;
 };
 
+export type UserRole = 'admin' | 'data-entry-operator' | 'viewer';
+
 export type User = {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: UserRole;
   password?: string;
 };

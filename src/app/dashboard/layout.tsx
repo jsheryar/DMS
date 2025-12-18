@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Bell,
   FileText,
+  History,
   Home,
   Search,
   Settings,
@@ -15,7 +16,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UserNav } from '@/components/user-nav';
-import Logo from '@/components/logo';
 import {
   Tooltip,
   TooltipContent,
@@ -53,13 +53,15 @@ function BrandingDisplay() {
   }, []);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-4">
       {settings.logoUrl ? (
-        <Image src={settings.logoUrl} alt="Department Logo" width={28} height={28} className="h-7 w-7 object-contain" />
+        <Image src={settings.logoUrl} alt="Department Logo" width={36} height={36} className="h-9 w-9 object-contain" />
       ) : (
-        <Logo className="h-7 w-7" />
+         <div className="h-9 w-9 rounded-lg bg-primary/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-primary"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+         </div>
       )}
-      <span className="font-semibold text-lg hidden md:block">{settings.departmentName || 'DocuSafe'}</span>
+      <span className="font-semibold text-xl hidden md:block">{settings.departmentName || 'DocuSafe'}</span>
     </div>
   );
 }
@@ -86,6 +88,7 @@ export default function DashboardLayout({
 
   const adminLinks = [
     { href: '/dashboard/users', icon: Users, label: 'Manage Users' },
+    { href: '/dashboard/logs', icon: History, label: 'User Logs' },
   ];
 
   const allNavLinks = [...navLinks, ...(showAdminLinks ? adminLinks : [])];
@@ -98,7 +101,7 @@ export default function DashboardLayout({
             href="/dashboard"
             className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
           >
-            <Logo className="h-5 w-5 transition-all group-hover:scale-110 text-primary-foreground" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary-foreground transition-all group-hover:scale-110"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
             <span className="sr-only">DocuSafe</span>
           </Link>
           <TooltipProvider>
@@ -160,7 +163,7 @@ export default function DashboardLayout({
       </aside>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <Sheet>
               <SheetTrigger asChild>
                 <Button size="icon" variant="outline" className="sm:hidden">
@@ -172,9 +175,9 @@ export default function DashboardLayout({
                 <nav className="grid gap-6 text-lg font-medium">
                   <Link
                     href="#"
-                    className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
+                    className="group flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
                   >
-                    <Logo className="h-5 w-5 text-primary-foreground transition-all group-hover:scale-110" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary-foreground transition-all group-hover:scale-110"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
                     <span className="sr-only">DocuSafe</span>
                   </Link>
                   {allNavLinks.map((link) => (
@@ -203,17 +206,17 @@ export default function DashboardLayout({
                 </nav>
               </SheetContent>
             </Sheet>
-            <div className="relative flex items-center gap-2 md:grow-0">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search documents..."
-                className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-              />
-            </div>
+            <BrandingDisplay />
           </div>
           
-          <BrandingDisplay />
+          <div className="relative flex items-center gap-2 md:grow-0">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search documents..."
+              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
+            />
+          </div>
           
           <div className="flex items-center gap-2">
             <UserNav />

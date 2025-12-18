@@ -64,7 +64,7 @@ import type { Document } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
-
+import { addLog } from '@/lib/logs';
 
 const initialDocuments: Document[] = [
     {
@@ -119,13 +119,13 @@ const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destruct
   Notesheets: 'outline',
 };
 
-function ViewDocumentDialog({ document }: { document: Document }) {
+function ViewDocumentDialog({ document: doc }: { document: Document }) {
   const handleView = () => {
-    if (document.fileUrl) {
-      window.open(document.fileUrl, '_blank');
+    if (doc.fileUrl) {
+      window.open(doc.fileUrl, '_blank');
     } else {
       // Fallback for initial documents without a file
-      alert('This document does not have a file to view.');
+      alert(`Title: ${doc.title}\nDescription: ${doc.description}\nKeywords: ${doc.keywords}\nDate: ${doc.date}`);
     }
   };
 
@@ -152,6 +152,7 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
         title: 'Download Started',
         description: `Your download for "${doc.title}" has started.`,
       });
+      addLog('Document Downloaded', { documentId: doc.id, documentTitle: doc.title });
     } else {
       toast({
         variant: 'destructive',
@@ -234,17 +235,17 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
     }
 
     const newDocument: Document = {
-      id: `DOC-${String(Date.now()).slice(-3)}`,
+      id: `DOC-${String(Date.now()).slice(-5)}`,
       title,
       category,
       date: new Date().toISOString().split('T')[0],
       description,
       keywords,
-      file: file,
       fileName: file.name,
       fileUrl: URL.createObjectURL(file),
     };
     onUpload(newDocument);
+    addLog('Document Uploaded', { documentId: newDocument.id, documentTitle: newDocument.title });
     toast({
       title: "Document Uploaded",
       description: `${title} has been successfully uploaded.`,
@@ -392,12 +393,42 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
   )
 }
 
+// Custom hook for localStorage
+function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
+    const [storedValue, setStoredValue] = React.useState<T>(() => {
+        if (typeof window === 'undefined') {
+            return initialValue;
+        }
+        try {
+            const item = window.localStorage.getItem(key);
+            return item ? JSON.parse(item) : initialValue;
+        } catch (error) {
+            console.log(error);
+            return initialValue;
+        }
+    });
+
+    const setValue = (value: T | ((val: T) => T)) => {
+        try {
+            const valueToStore = value instanceof Function ? value(storedValue) : value;
+            setStoredValue(valueToStore);
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem(key, JSON.stringify(valueToStore));
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    };
+    return [storedValue, setValue];
+}
+
+
 function DashboardPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tab = searchParams.get('tab');
-  const [documents, setDocuments] = React.useState<Document[]>(initialDocuments);
-  const [categories, setCategories] = React.useState<string[]>(initialCategories);
+  const [documents, setDocuments] = useLocalStorage<Document[]>('documents', initialDocuments);
+  const [categories, setCategories] = useLocalStorage<string[]>('categories', initialCategories);
 
   React.useEffect(() => {
     const user = getCurrentUser();

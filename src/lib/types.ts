@@ -9,3 +9,20 @@ export interface Document {
   fileUrl?: string;
   fileName?: string;
 }
+
+export type UserLog = {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  timestamp: string;
+  details?: Record<string, any>;
+};
+
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+  password?: string;
+};

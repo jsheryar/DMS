@@ -138,11 +138,33 @@ function ViewDocumentDialog({ document }: { document: Document }) {
 function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
   const { toast } = useToast();
 
-  const handleAction = (action: 'download' | 'forward', docTitle: string) => {
+  const handleForward = (docTitle: string) => {
     toast({
-      title: `${action === 'download' ? 'Download Started' : 'Forwarding Initiated'}`,
+      title: 'Forwarding Initiated',
       description: `The document "${docTitle}" is being prepared. This is a simulated action.`,
     });
+  };
+
+  const handleDownload = (doc: Document) => {
+    if (doc.fileUrl && doc.fileName) {
+      const link = document.createElement('a');
+      link.href = doc.fileUrl;
+      link.download = doc.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(doc.fileUrl); // Clean up the object URL
+      toast({
+        title: 'Download Started',
+        description: `Your download for "${doc.title}" has started.`,
+      });
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Download Failed',
+        description: 'This document does not have a file available for download.',
+      });
+    }
   };
 
   return (
@@ -184,8 +206,8 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                   <ViewDocumentDialog document={doc} />
-                  <DropdownMenuItem onClick={() => handleAction('download', doc.title)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleAction('forward', doc.title)}><Send className="mr-2 h-4 w-4" />Forward</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleForward(doc.title)}><Send className="mr-2 h-4 w-4" />Forward</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>

@@ -118,7 +118,58 @@ const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destruct
   Notesheets: 'outline',
 };
 
+function ViewDocumentDialog({ document }: { document: Document }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+          <Eye className="mr-2 h-4 w-4" />View
+        </DropdownMenuItem>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{document.title}</DialogTitle>
+          <DialogDescription>
+            Document ID: {document.id}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Category</Label>
+            <div className="col-span-3">
+              <Badge variant={categoryBadgeVariant[document.category] || 'default'}>
+                {document.category}
+              </Badge>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Date</Label>
+            <span className="col-span-3 text-sm">{document.date}</span>
+          </div>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label className="text-right pt-1">Description</Label>
+            <p className="col-span-3 text-sm">{document.description}</p>
+          </div>
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label className="text-right pt-1">Keywords</Label>
+            <p className="col-span-3 text-sm">{document.keywords}</p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
+  const { toast } = useToast();
+
+  const handleAction = (action: 'download' | 'forward', docTitle: string) => {
+    toast({
+      title: `${action === 'download' ? 'Download Started' : 'Forwarding Initiated'}`,
+      description: `The document "${docTitle}" is being prepared. This is a simulated action.`,
+    });
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -157,9 +208,9 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuItem><Eye className="mr-2 h-4 w-4" />View</DropdownMenuItem>
-                  <DropdownMenuItem><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
-                  <DropdownMenuItem><Send className="mr-2 h-4 w-4" />Forward</DropdownMenuItem>
+                  <ViewDocumentDialog document={doc} />
+                  <DropdownMenuItem onClick={() => handleAction('download', doc.title)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleAction('forward', doc.title)}><Send className="mr-2 h-4 w-4" />Forward</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>

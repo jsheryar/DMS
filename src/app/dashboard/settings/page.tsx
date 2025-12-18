@@ -142,9 +142,6 @@ function BackupAndRestoreCard() {
         reader.readAsText(file);
     };
 
-    if (!isAdmin()) {
-        return null;
-    }
 
     return (
         <Card>
@@ -186,7 +183,7 @@ export default function SettingsPage() {
   return (
     <div className="grid gap-6">
       {showAdminSettings && <BrandingSettingsCard />}
-      <BackupAndRestoreCard />
+      {showAdminSettings && <BackupAndRestoreCard />}
     </div>
   );
 }

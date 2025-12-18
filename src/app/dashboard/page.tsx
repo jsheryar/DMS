@@ -136,6 +136,7 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
   );
 }
 
+
 function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
   const { toast } = useToast();
 
@@ -346,10 +347,6 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
     toast({ title: 'Category removed', description: `"${categoryToRemove}" has been removed.` });
   };
   
-  if (!isAdmin()) {
-    return null;
-  }
-
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -429,11 +426,14 @@ function DashboardPageContent() {
   const tab = searchParams.get('tab');
   const [documents, setDocuments] = useLocalStorage<Document[]>('documents', initialDocuments);
   const [categories, setCategories] = useLocalStorage<string[]>('categories', initialCategories);
+  const [showAdminFeatures, setShowAdminFeatures] = React.useState(false);
 
   React.useEffect(() => {
     const user = getCurrentUser();
     if (!user) {
       router.push('/');
+    } else {
+      setShowAdminFeatures(user.role === 'admin');
     }
   }, [router]);
   
@@ -496,8 +496,12 @@ function DashboardPageContent() {
             ))}
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
-            <ManageCategoriesDialog categories={categories} setCategories={setCategories} />
-            {isAdmin() && <UploadDocumentDialog categories={categories} onUpload={handleUpload} />}
+             {showAdminFeatures && (
+              <>
+                <ManageCategoriesDialog categories={categories} setCategories={setCategories} />
+                <UploadDocumentDialog categories={categories} onUpload={handleUpload} />
+              </>
+            )}
           </div>
         </div>
         <TabsContent value="all">

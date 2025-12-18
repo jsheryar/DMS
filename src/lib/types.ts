@@ -1,6 +1,8 @@
 export interface Document {
   id: string;
   title: string;
-  category: 'Letters' | 'Notifications' | 'Notesheets';
+  category: string;
   date: string;
+  description: string;
+  keywords: string;
 }

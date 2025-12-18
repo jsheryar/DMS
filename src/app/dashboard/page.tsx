@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -14,7 +15,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Document } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
 
 
 const initialDocuments: Document[] = [
@@ -342,6 +344,10 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
     setCategories(categories.filter(c => c !== categoryToRemove));
     toast({ title: 'Category removed', description: `"${categoryToRemove}" has been removed.` });
   };
+  
+  if (!isAdmin()) {
+    return null;
+  }
 
   return (
     <Dialog>
@@ -388,10 +394,18 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
 
 function DashboardPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tab = searchParams.get('tab');
   const [documents, setDocuments] = React.useState<Document[]>(initialDocuments);
   const [categories, setCategories] = React.useState<string[]>(initialCategories);
 
+  React.useEffect(() => {
+    const user = getCurrentUser();
+    if (!user) {
+      router.push('/');
+    }
+  }, [router]);
+  
   const handleUpload = (newDocument: Document) => {
     setDocuments(prev => [newDocument, ...prev]);
   };
@@ -452,7 +466,7 @@ function DashboardPageContent() {
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
             <ManageCategoriesDialog categories={categories} setCategories={setCategories} />
-            <UploadDocumentDialog categories={categories} onUpload={handleUpload} />
+            {isAdmin() && <UploadDocumentDialog categories={categories} onUpload={handleUpload} />}
           </div>
         </div>
         <TabsContent value="all">

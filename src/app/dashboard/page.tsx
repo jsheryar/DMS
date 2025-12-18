@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,8 +33,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 import {
   Table,
@@ -168,7 +167,7 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
         ))}
       </TableBody>
     </Table>
-  )
+  );
 }
 
 function UploadDocumentDialog({ categories, onUpload }: { categories: string[], onUpload: (doc: Document) => void }) {
@@ -343,7 +342,9 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
   )
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab');
   const [documents, setDocuments] = React.useState<Document[]>(initialDocuments);
   const [categories, setCategories] = React.useState<string[]>(initialCategories);
 
@@ -397,7 +398,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="all">
+      <Tabs defaultValue="all" value={tab || 'all'}>
         <div className="flex items-center">
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
@@ -444,4 +445,12 @@ export default function DashboardPage() {
       </Tabs>
     </>
   );
+}
+
+export default function DashboardPage() {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <DashboardPageContent />
+    </React.Suspense>
+  )
 }

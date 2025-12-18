@@ -135,14 +135,89 @@ function ViewDocumentDialog({ document }: { document: Document }) {
   );
 }
 
+function ForwardDocumentDialog({ document, open, onOpenChange }: { document: Document | null, open: boolean, onOpenChange: (open: boolean) => void }) {
+  const { toast } = useToast();
+  const [recipientEmail, setRecipientEmail] = React.useState('');
+  const [message, setMessage] = React.useState('');
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipientEmail) {
+      toast({
+        variant: "destructive",
+        title: "Recipient Missing",
+        description: "Please enter a recipient's email address.",
+      });
+      return;
+    }
+
+    toast({
+      title: "Document Forwarded",
+      description: `"${document?.title}" has been forwarded to ${recipientEmail}. (Simulated)`,
+    });
+    setRecipientEmail('');
+    setMessage('');
+    onOpenChange(false);
+  };
+
+  if (!document) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form onSubmit={handleSend}>
+          <DialogHeader>
+            <DialogTitle>Forward Document: {document.title}</DialogTitle>
+            <DialogDescription>
+              Enter the recipient's email and an optional message.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="recipient" className="text-right">
+                Recipient
+              </Label>
+              <Input
+                id="recipient"
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="email@example.com"
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="message" className="text-right">
+                Message
+              </Label>
+              <Textarea
+                id="message"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Optional message..."
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit">Send</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
   const { toast } = useToast();
+  const [forwardingDoc, setForwardingDoc] = React.useState<Document | null>(null);
+  const [isForwardDialogOpen, setForwardDialogOpen] = React.useState(false);
 
-  const handleForward = (docTitle: string) => {
-    toast({
-      title: 'Forwarding Initiated',
-      description: `The document "${docTitle}" is being prepared. This is a simulated action.`,
-    });
+
+  const handleForwardClick = (doc: Document) => {
+    setForwardingDoc(doc);
+    setForwardDialogOpen(true);
   };
 
   const handleDownload = (doc: Document) => {
@@ -168,53 +243,56 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="hidden w-[100px] sm:table-cell">
-            ID
-          </TableHead>
-          <TableHead>Title</TableHead>
-          <TableHead className="hidden md:table-cell">Category</TableHead>
-          <TableHead className="hidden md:table-cell">Date</TableHead>
-          <TableHead>
-            <span className="sr-only">Actions</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {tableDocs.map((doc) => (
-          <TableRow key={doc.id}>
-            <TableCell className="hidden sm:table-cell font-medium">
-              {doc.id}
-            </TableCell>
-            <TableCell className="font-medium">{doc.title}</TableCell>
-            <TableCell className="hidden md:table-cell">
-              <Badge variant={categoryBadgeVariant[doc.category] || 'default'}>
-                {doc.category}
-              </Badge>
-            </TableCell>
-            <TableCell className="hidden md:table-cell">{doc.date}</TableCell>
-            <TableCell>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button aria-haspopup="true" size="icon" variant="ghost">
-                    <MoreHorizontal className="h-4 w-4" />
-                    <span className="sr-only">Toggle menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <ViewDocumentDialog document={doc} />
-                  <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleForward(doc.title)}><Send className="mr-2 h-4 w-4" />Forward</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="hidden w-[100px] sm:table-cell">
+              ID
+            </TableHead>
+            <TableHead>Title</TableHead>
+            <TableHead className="hidden md:table-cell">Category</TableHead>
+            <TableHead className="hidden md:table-cell">Date</TableHead>
+            <TableHead>
+              <span className="sr-only">Actions</span>
+            </TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {tableDocs.map((doc) => (
+            <TableRow key={doc.id}>
+              <TableCell className="hidden sm:table-cell font-medium">
+                {doc.id}
+              </TableCell>
+              <TableCell className="font-medium">{doc.title}</TableCell>
+              <TableCell className="hidden md:table-cell">
+                <Badge variant={categoryBadgeVariant[doc.category] || 'default'}>
+                  {doc.category}
+                </Badge>
+              </TableCell>
+              <TableCell className="hidden md:table-cell">{doc.date}</TableCell>
+              <TableCell>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Toggle menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <ViewDocumentDialog document={doc} />
+                    <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleForwardClick(doc)}><Send className="mr-2 h-4 w-4" />Forward</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <ForwardDocumentDialog document={forwardingDoc} open={isForwardDialogOpen} onOpenChange={setForwardDialogOpen} />
+    </>
   );
 }
 

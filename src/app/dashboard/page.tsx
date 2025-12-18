@@ -6,7 +6,6 @@ import {
   MoreHorizontal,
   PlusCircle,
   Download,
-  Send,
   Eye,
   FileText,
   Bell,
@@ -14,8 +13,6 @@ import {
   File,
   Plus,
   Trash2,
-  Copy,
-  Loader2,
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
@@ -65,11 +62,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Document } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { forwardDocument } from '@/ai/flows/forward-document-flow';
 
 
 const initialDocuments: Document[] = [
-  {
+    {
     id: 'DOC-001',
     title: 'Quarterly Financial Report Q2 2023',
     category: 'Letters',
@@ -138,150 +134,8 @@ function ViewDocumentDialog({ document }: { document: Document }) {
   );
 }
 
-function ForwardDocumentDialog({ document, open, onOpenChange }: { document: Document | null, open: boolean, onOpenChange: (open: boolean) => void }) {
-  const { toast } = useToast();
-  const [recipientEmail, setRecipientEmail] = React.useState('');
-  const [message, setMessage] = React.useState('');
-  const [generatedEmailBody, setGeneratedEmailBody] = React.useState('');
-  const [isGenerating, setIsGenerating] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!open) {
-      setRecipientEmail('');
-      setMessage('');
-      setGeneratedEmailBody('');
-      setIsGenerating(false);
-    }
-  }, [open]);
-
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recipientEmail || !document) {
-      toast({
-        variant: "destructive",
-        title: "Recipient Missing",
-        description: "Please enter a recipient's email address.",
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const result = await forwardDocument({
-        documentTitle: document.title,
-        documentDescription: document.description,
-        recipientEmail: recipientEmail,
-        senderMessage: message,
-      });
-      setGeneratedEmailBody(result.emailBody);
-    } catch (error) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'AI Failed',
-        description: 'The AI could not generate an email body. Please try again.',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedEmailBody);
-    toast({
-      title: "Copied to Clipboard",
-      description: "The email body has been copied.",
-    });
-  };
-
-  if (!document) return null;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <form onSubmit={handleSend}>
-          <DialogHeader>
-            <DialogTitle>Forward Document: {document.title}</DialogTitle>
-            <DialogDescription>
-              {generatedEmailBody
-                ? "The AI has drafted an email for you. Copy it and send it via your email client."
-                : "Enter the recipient's email and an optional message to generate a draft."}
-            </DialogDescription>
-          </DialogHeader>
-
-          {generatedEmailBody ? (
-            <div className="my-4 space-y-4">
-              <div className="relative">
-                <Label>Generated Email</Label>
-                <Textarea
-                  readOnly
-                  value={generatedEmailBody}
-                  className="mt-2 h-48 bg-muted"
-                />
-              </div>
-              <Button type="button" onClick={copyToClipboard} className="w-full">
-                <Copy className="mr-2 h-4 w-4" /> Copy Email Body
-              </Button>
-            </div>
-          ) : (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="recipient" className="text-right">
-                  Recipient
-                </Label>
-                <Input
-                  id="recipient"
-                  type="email"
-                  value={recipientEmail}
-                  onChange={(e) => setRecipientEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  className="col-span-3"
-                  disabled={isGenerating}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="message" className="text-right">
-                  Message
-                </Label>
-                <Textarea
-                  id="message"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Optional message..."
-                  className="col-span-3"
-                  disabled={isGenerating}
-                />
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              {generatedEmailBody ? 'Close' : 'Cancel'}
-            </Button>
-            {!generatedEmailBody && (
-              <Button type="submit" disabled={isGenerating}>
-                {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Generate Email
-              </Button>
-            )}
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
   const { toast } = useToast();
-  const [forwardingDoc, setForwardingDoc] = React.useState<Document | null>(null);
-  const [isForwardDialogOpen, setForwardDialogOpen] = React.useState(false);
-
-
-  const handleForwardClick = (doc: Document) => {
-    setForwardingDoc(doc);
-    setForwardDialogOpen(true);
-  };
 
   const handleDownload = (doc: Document) => {
     if (doc.fileUrl && doc.fileName) {
@@ -346,7 +200,6 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <ViewDocumentDialog document={doc} />
                     <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleForwardClick(doc)}><Send className="mr-2 h-4 w-4" />Forward</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -354,7 +207,6 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
           ))}
         </TableBody>
       </Table>
-      <ForwardDocumentDialog document={forwardingDoc} open={isForwardDialogOpen} onOpenChange={setForwardDialogOpen} />
     </>
   );
 }

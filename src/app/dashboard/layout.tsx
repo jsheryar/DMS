@@ -53,7 +53,7 @@ function BrandingDisplay() {
   }, []);
 
   return (
-    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
+    <div className="flex items-center gap-2">
       {settings.logoUrl ? (
         <Image src={settings.logoUrl} alt="Department Logo" width={28} height={28} className="h-7 w-7 object-contain" />
       ) : (
@@ -159,61 +159,65 @@ export default function DashboardLayout({
         </nav>
       </aside>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button size="icon" variant="outline" className="sm:hidden">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="sm:max-w-xs">
-              <nav className="grid gap-6 text-lg font-medium">
-                <Link
-                  href="#"
-                  className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
-                >
-                  <Logo className="h-5 w-5 text-primary-foreground transition-all group-hover:scale-110" />
-                  <span className="sr-only">DocuSafe</span>
-                </Link>
-                {allNavLinks.map((link) => (
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+          <div className="flex items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button size="icon" variant="outline" className="sm:hidden">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Toggle Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="sm:max-w-xs">
+                <nav className="grid gap-6 text-lg font-medium">
                   <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      'flex items-center gap-4 px-2.5',
-                      pathname === link.href ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    )}
+                    href="#"
+                    className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
                   >
-                    <link.icon className="h-5 w-5" />
-                    {link.label}
+                    <Logo className="h-5 w-5 text-primary-foreground transition-all group-hover:scale-110" />
+                    <span className="sr-only">DocuSafe</span>
                   </Link>
-                ))}
-                 <Link
-                    href="/dashboard/settings"
-                    className={cn(
-                      'flex items-center gap-4 px-2.5',
-                      pathname === '/dashboard/settings' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                  <Settings className="h-5 w-5" />
-                  Settings
-                </Link>
-              </nav>
-            </SheetContent>
-          </Sheet>
+                  {allNavLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={cn(
+                        'flex items-center gap-4 px-2.5',
+                        pathname === link.href ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <link.icon className="h-5 w-5" />
+                      {link.label}
+                    </Link>
+                  ))}
+                  <Link
+                      href="/dashboard/settings"
+                      className={cn(
+                        'flex items-center gap-4 px-2.5',
+                        pathname === '/dashboard/settings' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                    <Settings className="h-5 w-5" />
+                    Settings
+                  </Link>
+                </nav>
+              </SheetContent>
+            </Sheet>
+            <div className="relative flex items-center gap-2 md:grow-0">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search documents..."
+                className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
+              />
+            </div>
+          </div>
           
           <BrandingDisplay />
           
-          <div className="relative ml-auto flex items-center gap-2 md:grow-0">
-             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search documents..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-            />
+          <div className="flex items-center gap-2">
+            <UserNav />
           </div>
-          <UserNav />
         </header>
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           {children}

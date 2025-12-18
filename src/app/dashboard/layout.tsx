@@ -10,6 +10,7 @@ import {
   Settings,
   StickyNote,
   Upload,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,8 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { isAdmin } from '@/lib/auth';
+import React from 'react';
 
 export default function DashboardLayout({
   children,
@@ -32,6 +35,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [showAdminLinks, setShowAdminLinks] = React.useState(false);
+
+  React.useEffect(() => {
+    setShowAdminLinks(isAdmin());
+  }, []);
 
   const navLinks = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -40,6 +48,12 @@ export default function DashboardLayout({
     { href: '/dashboard/notesheets', icon: StickyNote, label: 'Notesheets' },
     { href: '/dashboard/upload', icon: Upload, label: 'Upload' },
   ];
+
+  const adminLinks = [
+    { href: '/dashboard/users', icon: Users, label: 'Manage Users' },
+  ];
+
+  const allNavLinks = [...navLinks, ...(showAdminLinks ? adminLinks : [])];
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -54,6 +68,23 @@ export default function DashboardLayout({
           </Link>
           <TooltipProvider>
             {navLinks.map((link) => (
+              <Tooltip key={link.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={link.href}
+                    className={cn(
+                      'flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:text-foreground md:h-8 md:w-8',
+                      pathname === link.href ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
+                    )}
+                  >
+                    <link.icon className="h-5 w-5" />
+                    <span className="sr-only">{link.label}</span>
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{link.label}</TooltipContent>
+              </Tooltip>
+            ))}
+             {showAdminLinks && adminLinks.map((link) => (
               <Tooltip key={link.href}>
                 <TooltipTrigger asChild>
                   <Link
@@ -110,7 +141,7 @@ export default function DashboardLayout({
                   <Logo className="h-5 w-5 text-primary-foreground transition-all group-hover:scale-110" />
                   <span className="sr-only">DocuSafe</span>
                 </Link>
-                {navLinks.map((link) => (
+                {allNavLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}

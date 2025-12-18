@@ -28,6 +28,41 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { isAdmin } from '@/lib/auth';
 import React from 'react';
+import { getBrandingSettings, type BrandingSettings } from '@/lib/branding';
+import Image from 'next/image';
+
+function BrandingDisplay() {
+  const [settings, setSettings] = React.useState<BrandingSettings>({});
+
+  React.useEffect(() => {
+    // Function to update settings from localStorage
+    const updateSettings = () => {
+      setSettings(getBrandingSettings());
+    };
+    
+    // Initial load
+    updateSettings();
+
+    // Listen for storage changes to update in real-time
+    window.addEventListener('storage', updateSettings);
+
+    // Cleanup listener
+    return () => {
+      window.removeEventListener('storage', updateSettings);
+    };
+  }, []);
+
+  return (
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
+      {settings.logoUrl ? (
+        <Image src={settings.logoUrl} alt="Department Logo" width={28} height={28} className="h-7 w-7 object-contain" />
+      ) : (
+        <Logo className="h-7 w-7" />
+      )}
+      <span className="font-semibold text-lg hidden md:block">{settings.departmentName || 'DocuSafe'}</span>
+    </div>
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -167,8 +202,11 @@ export default function DashboardLayout({
               </nav>
             </SheetContent>
           </Sheet>
-          <div className="relative ml-auto flex-1 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          
+          <BrandingDisplay />
+          
+          <div className="relative ml-auto flex items-center gap-2 md:grow-0">
+             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search documents..."

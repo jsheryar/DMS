@@ -5,4 +5,7 @@ export interface Document {
   date: string;
   description: string;
   keywords: string;
+  file?: File;
+  fileUrl?: string;
+  fileName?: string;
 }

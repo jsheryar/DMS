@@ -119,44 +119,19 @@ const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destruct
 };
 
 function ViewDocumentDialog({ document }: { document: Document }) {
+  const handleView = () => {
+    if (document.fileUrl) {
+      window.open(document.fileUrl, '_blank');
+    } else {
+      // Fallback for initial documents without a file
+      alert('This document does not have a file to view.');
+    }
+  };
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-          <Eye className="mr-2 h-4 w-4" />View
-        </DropdownMenuItem>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{document.title}</DialogTitle>
-          <DialogDescription>
-            Document ID: {document.id}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Category</Label>
-            <div className="col-span-3">
-              <Badge variant={categoryBadgeVariant[document.category] || 'default'}>
-                {document.category}
-              </Badge>
-            </div>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label className="text-right">Date</Label>
-            <span className="col-span-3 text-sm">{document.date}</span>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right pt-1">Description</Label>
-            <p className="col-span-3 text-sm">{document.description}</p>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label className="text-right pt-1">Keywords</Label>
-            <p className="col-span-3 text-sm">{document.keywords}</p>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <DropdownMenuItem onSelect={handleView}>
+      <Eye className="mr-2 h-4 w-4" />View
+    </DropdownMenuItem>
   );
 }
 
@@ -248,6 +223,9 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
       date: new Date().toISOString().split('T')[0],
       description,
       keywords,
+      file: file,
+      fileName: file.name,
+      fileUrl: URL.createObjectURL(file),
     };
     onUpload(newDocument);
     toast({

@@ -12,6 +12,7 @@ import {
   StickyNote,
   Upload,
   Users,
+  ListFilter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { isAdmin, getCurrentUser } from '@/lib/auth';
 import React from 'react';
@@ -65,6 +66,39 @@ function BrandingDisplay() {
     </div>
   );
 }
+
+function SearchInput() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [query, setQuery] = React.useState(searchParams.get('q') || '');
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newQuery = e.target.value;
+    setQuery(newQuery);
+    const params = new URLSearchParams(searchParams.toString());
+    if (newQuery) {
+      params.set('q', newQuery);
+    } else {
+      params.delete('q');
+    }
+    router.replace(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <div className="relative flex-1 md:grow-0">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search documents..."
+          value={query}
+          onChange={handleSearch}
+          className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
+        />
+      </div>
+  );
+}
+
 
 export default function DashboardLayout({
   children,
@@ -171,8 +205,7 @@ export default function DashboardLayout({
         </nav>
       </aside>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <Sheet>
               <SheetTrigger asChild>
                 <Button size="icon" variant="outline" className="sm:hidden">
@@ -216,18 +249,9 @@ export default function DashboardLayout({
               </SheetContent>
             </Sheet>
             <BrandingDisplay />
-          </div>
           
-          <div className="relative flex items-center gap-2 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search documents..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
+            <SearchInput />
             <UserNav />
           </div>
         </header>
@@ -238,3 +262,5 @@ export default function DashboardLayout({
     </div>
   );
 }
+
+    

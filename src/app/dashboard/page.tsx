@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import * as React from 'react';
@@ -212,7 +213,7 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tableDocs.map((doc) => (
+          {tableDocs.length > 0 ? tableDocs.map((doc) => (
             <TableRow key={doc.id}>
               <TableCell className="hidden sm:table-cell font-medium">
                 {doc.id}
@@ -242,7 +243,13 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
                 )}
               </TableCell>
             </TableRow>
-          ))}
+          )) : (
+            <TableRow>
+              <TableCell colSpan={5} className="h-24 text-center">
+                No documents found.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </>
@@ -387,6 +394,11 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
 function ManageCategoriesDialog({ categories, setCategories }: { categories: string[], setCategories: React.Dispatch<React.SetStateAction<string[]>> }) {
   const { toast } = useToast();
   const [newCategory, setNewCategory] = React.useState('');
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleAddCategory = () => {
     if (newCategory && !categories.includes(newCategory)) {
@@ -403,6 +415,8 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
     toast({ title: 'Category removed', description: `"${categoryToRemove}" has been removed.` });
   };
   
+  if (!isMounted) return null;
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -446,9 +460,74 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
   )
 }
 
+function AdvancedFilterDialog({ applyFilters }: { applyFilters: (filters: any) => void }) {
+  const [open, setOpen] = React.useState(false);
+  const [title, setTitle] = React.useState('');
+  const [category, setCategory] = React.useState('');
+  const [date, setDate] = React.useState('');
+  const [categories] = useLocalStorage<string[]>('categories', initialCategories);
+
+  const handleApply = () => {
+    applyFilters({ title, category, date });
+    setOpen(false);
+  };
+  
+  const handleClear = () => {
+    setTitle('');
+    setCategory('');
+    setDate('');
+    applyFilters({ title: '', category: '', date: '' });
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1">
+          <ListFilter className="h-3.5 w-3.5" />
+          <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Advanced Filters</DialogTitle>
+          <DialogDescription>Filter documents by specific criteria.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="filter-title" className="text-right">Title</Label>
+            <Input id="filter-title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" placeholder="Document title" />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="filter-category" className="text-right">Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Any Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Any Category</SelectItem>
+                {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="filter-date" className="text-right">Date</Label>
+            <Input id="filter-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="col-span-3" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClear}>Clear</Button>
+          <Button onClick={handleApply}>Apply Filters</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 // Custom hook for localStorage
 function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [storedValue, setStoredValue] = React.useState<T>(initialValue);
+    const [storedValue, setStoredValue] = React.useState<T>(() => initialValue);
     const [isMounted, setIsMounted] = React.useState(false);
 
     React.useEffect(() => {
@@ -459,12 +538,31 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<Re
                 setStoredValue(JSON.parse(item));
             } else {
                  window.localStorage.setItem(key, JSON.stringify(initialValue));
+                 setStoredValue(initialValue);
             }
         } catch (error) {
             console.log(error);
             setStoredValue(initialValue);
         }
     }, [key, initialValue]);
+    
+    React.useEffect(() => {
+      if (isMounted) {
+        const handleStorageChange = () => {
+          try {
+            const item = window.localStorage.getItem(key);
+            if (item) {
+              setStoredValue(JSON.parse(item));
+            }
+          } catch (error) {
+            console.log(error);
+          }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+      }
+    }, [isMounted, key]);
+
 
     const setValue = (value: T | ((val: T) => T)) => {
         if (!isMounted) return;
@@ -491,12 +589,15 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<Re
 function DashboardPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tab = searchParams.get('tab') || 'all';
   const [documents, setDocuments] = useLocalStorage<Document[]>('documents', initialDocuments);
   const [categories, setCategories] = useLocalStorage<string[]>('categories', initialCategories);
   const [isAdminOrOperator, setIsAdminOrOperator] = React.useState(false);
   const [isAdminUser, setIsAdminUser] = React.useState(false);
   const [isMounted, setIsMounted] = React.useState(false);
+  const [advancedFilters, setAdvancedFilters] = React.useState({ title: '', category: '', date: '' });
+
+  const tab = searchParams.get('tab') || 'all';
+  const searchQuery = searchParams.get('q') || '';
 
   React.useEffect(() => {
     setIsMounted(true);
@@ -515,8 +616,35 @@ function DashboardPageContent() {
   };
 
   const handleTabChange = (value: string) => {
-    router.push(`/dashboard?tab=${value}`);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', value);
+    router.push(`/dashboard?${params.toString()}`);
   };
+
+  const filteredDocuments = React.useMemo(() => {
+    return documents.filter(doc => {
+      const matchesSearchQuery = searchQuery
+        ? doc.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          doc.keywords.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+
+      const matchesAdvancedFilters = 
+        (!advancedFilters.title || doc.title.toLowerCase().includes(advancedFilters.title.toLowerCase())) &&
+        (!advancedFilters.category || doc.category === advancedFilters.category) &&
+        (!advancedFilters.date || doc.date === advancedFilters.date);
+
+      return matchesSearchQuery && matchesAdvancedFilters;
+    });
+  }, [documents, searchQuery, advancedFilters]);
+
+  const documentsForCurrentTab = React.useMemo(() => {
+    if (tab === 'all') {
+      return filteredDocuments;
+    }
+    return filteredDocuments.filter(d => d.category.toLowerCase() === tab);
+  }, [filteredDocuments, tab]);
+
 
   const totalDocs = documents.length;
   const lettersCount = documents.filter(d => d.category === 'Letters').length;
@@ -577,6 +705,7 @@ function DashboardPageContent() {
             ))}
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
+            <AdvancedFilterDialog applyFilters={setAdvancedFilters} />
              {isAdminUser && (
               <ManageCategoriesDialog categories={categories} setCategories={setCategories} />
              )}
@@ -594,11 +723,11 @@ function DashboardPageContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <DocumentTable documents={documents} />
+              <DocumentTable documents={documentsForCurrentTab} />
             </CardContent>
             <CardFooter>
               <div className="text-xs text-muted-foreground">
-                Showing <strong>1-{documents.length}</strong> of <strong>{documents.length}</strong> documents
+                Showing <strong>1-{documentsForCurrentTab.length}</strong> of <strong>{documentsForCurrentTab.length}</strong> documents
               </div>
             </CardFooter>
           </Card>
@@ -611,8 +740,13 @@ function DashboardPageContent() {
                 <CardDescription>All documents categorized as {cat}.</CardDescription>
               </CardHeader>
               <CardContent>
-                <DocumentTable documents={documents.filter(d => d.category === cat)} />
+                <DocumentTable documents={documentsForCurrentTab} />
               </CardContent>
+               <CardFooter>
+                 <div className="text-xs text-muted-foreground">
+                    Showing <strong>1-{documentsForCurrentTab.length}</strong> of <strong>{documentsForCurrentT ab.length}</strong> documents
+                 </div>
+                </CardFooter>
             </Card>
           </TabsContent>
         ))}
@@ -628,5 +762,7 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
+
+    
 
     

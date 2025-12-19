@@ -120,9 +120,33 @@ const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destruct
 };
 
 function ViewDocumentDialog({ document: doc }: { document: Document }) {
+  const { toast } = useToast();
   const handleView = () => {
     if (doc.fileUrl) {
-      window.open(doc.fileUrl, '_blank');
+       try {
+        const isDataUrl = doc.fileUrl.startsWith('data:');
+        if (isDataUrl) {
+            const newWindow = window.open();
+            if (newWindow) {
+                // For PDF, we can use an iframe
+                if (doc.fileUrl.startsWith('data:application/pdf')) {
+                    newWindow.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                } else if (doc.fileUrl.match(/^data:image\//)) {
+                    newWindow.document.write(`<img src="${doc.fileUrl}" style="max-width: 100%;" />`);
+                } else {
+                     newWindow.document.write(`<p>Cannot preview this file type. Please download to view.</p><a href="${doc.fileUrl}" download="${doc.fileName || 'download'}">Download</a>`);
+                }
+            } else {
+                 toast({ variant: 'destructive', title: "Popup blocked", description: "Please allow popups for this site to view the document." });
+            }
+        } else {
+            // It's a regular URL
+            window.open(doc.fileUrl, '_blank');
+        }
+       } catch (e) {
+          console.error(e);
+          toast({ variant: 'destructive', title: "Error", description: "Could not open the file." });
+       }
     } else {
       // Fallback for initial documents without a file
       alert(`Title: ${doc.title}\nDescription: ${doc.description}\nKeywords: ${doc.keywords}\nDate: ${doc.date}`);
@@ -130,7 +154,7 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
   };
 
   return (
-    <DropdownMenuItem onSelect={handleView}>
+    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleView(); }}>
       <Eye className="mr-2 h-4 w-4" />View
     </DropdownMenuItem>
   );
@@ -456,7 +480,7 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<Re
 function DashboardPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const tab = searchParams.get('tab');
+  const tab = searchParams.get('tab') || 'all';
   const [documents, setDocuments] = useLocalStorage<Document[]>('documents', initialDocuments);
   const [categories, setCategories] = useLocalStorage<string[]>('categories', initialCategories);
   const [isAdminOrOperator, setIsAdminOrOperator] = React.useState(false);
@@ -475,6 +499,10 @@ function DashboardPageContent() {
   
   const handleUpload = (newDocument: Document) => {
     setDocuments(prev => [newDocument, ...prev]);
+  };
+
+  const handleTabChange = (value: string) => {
+    router.push(`/dashboard?tab=${value}`);
   };
 
   const totalDocs = documents.length;
@@ -523,7 +551,7 @@ function DashboardPageContent() {
         </Card>
       </div>
 
-      <Tabs defaultValue="all" value={tab || 'all'}>
+      <Tabs defaultValue="all" value={tab} onValueChange={handleTabChange}>
         <div className="flex items-center">
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>

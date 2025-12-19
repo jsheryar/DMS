@@ -12,7 +12,6 @@ import {
   StickyNote,
   Upload,
   Users,
-  ListFilter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,29 +72,32 @@ function SearchInput() {
   const searchParams = useSearchParams();
   const [query, setQuery] = React.useState(searchParams.get('q') || '');
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuery = e.target.value;
-    setQuery(newQuery);
-    const params = new URLSearchParams(searchParams.toString());
-    if (newQuery) {
-      params.set('q', newQuery);
-    } else {
-      params.delete('q');
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (query) {
+      params.set('q', query);
     }
-    router.replace(`${pathname}?${params.toString()}`);
+    
+    // If we are not on the search page, navigate to it. Otherwise, just update the params.
+    if (pathname !== '/dashboard/search') {
+      router.push(`/dashboard/search?${params.toString()}`);
+    } else {
+      router.replace(`/dashboard/search?${params.toString()}`);
+    }
   }
 
   return (
-    <div className="relative flex-1 md:grow-0">
+     <form onSubmit={handleSearch} className="relative flex-1 md:grow-0">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search documents..."
           value={query}
-          onChange={handleSearch}
+          onChange={(e) => setQuery(e.target.value)}
           className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
         />
-      </div>
+      </form>
   );
 }
 
@@ -120,6 +122,7 @@ export default function DashboardLayout({
 
   const navLinks = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
+    { href: '/dashboard/search', icon: Search, label: 'Search' },
     { href: '/dashboard/letters', icon: FileText, label: 'Letters' },
     { href: '/dashboard/notifications', icon: Bell, label: 'Notifications' },
     { href: '/dashboard/notesheets', icon: StickyNote, label: 'Notesheets' },
@@ -262,5 +265,3 @@ export default function DashboardLayout({
     </div>
   );
 }
-
-    

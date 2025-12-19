@@ -202,10 +202,11 @@ export default function SearchPage() {
             const matchesCategory = category ? doc.category === category : true;
             const matchesDate = date ? doc.date === date : true;
             const matchesKeywords = keywords ? doc.keywords.toLowerCase().includes(keywords.toLowerCase()) : true;
-            const matchesGeneralQuery = searchParams.get('q') ? (
-                doc.title.toLowerCase().includes(searchParams.get('q')!.toLowerCase()) ||
-                doc.description.toLowerCase().includes(searchParams.get('q')!.toLowerCase()) ||
-                doc.keywords.toLowerCase().includes(searchParams.get('q')!.toLowerCase())
+            const generalQuery = searchParams.get('q');
+            const matchesGeneralQuery = generalQuery ? (
+                doc.title.toLowerCase().includes(generalQuery.toLowerCase()) ||
+                doc.description.toLowerCase().includes(generalQuery.toLowerCase()) ||
+                doc.keywords.toLowerCase().includes(generalQuery.toLowerCase())
             ) : true;
 
             return matchesTitle && matchesCategory && matchesDate && matchesKeywords && matchesGeneralQuery;
@@ -228,12 +229,12 @@ export default function SearchPage() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        const params = new URLSearchParams();
-        if (title) params.set('title', title);
-        if (category) params.set('category', category);
-        if (date) params.set('date', date);
-        if (keywords) params.set('keywords', keywords);
-        // Clear the general 'q' param if we're doing a specific search
+        const params = new URLSearchParams(searchParams);
+        if (title) params.set('title', title); else params.delete('title');
+        if (category) params.set('category', category); else params.delete('category');
+        if (date) params.set('date', date); else params.delete('date');
+        if (keywords) params.set('keywords', keywords); else params.delete('keywords');
+        // Clear the general 'q' param if we're doing a specific search from this page
         params.delete('q');
 
         router.replace(`/dashboard/search?${params.toString()}`);
@@ -245,6 +246,15 @@ export default function SearchPage() {
         setDate('');
         setKeywords('');
         router.replace('/dashboard/search');
+    };
+    
+    const handleCategoryChange = (value: string) => {
+      // The "all" value is used to clear the filter.
+      if (value === "all") {
+        setCategory("");
+      } else {
+        setCategory(value);
+      }
     };
 
   return (
@@ -264,12 +274,12 @@ export default function SearchPage() {
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="category">Category</Label>
-                        <Select value={category} onValueChange={setCategory}>
+                        <Select value={category} onValueChange={handleCategoryChange}>
                             <SelectTrigger id="category">
                                 <SelectValue placeholder="Select a category" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Categories</SelectItem>
+                                <SelectItem value="all">All Categories</SelectItem>
                                 {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                             </SelectContent>
                         </Select>
@@ -294,3 +304,5 @@ export default function SearchPage() {
     </div>
   );
 }
+
+    

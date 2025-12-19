@@ -122,6 +122,27 @@ export const getCurrentUser = (): User | null => {
   return null;
 };
 
+export const changePassword = (userId: string, currentPassword: string, newPassword: string) => {
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.id === userId);
+
+  if (userIndex === -1) {
+    return { success: false, message: 'User not found.' };
+  }
+
+  const user = users[userIndex];
+
+  if (user.password !== currentPassword) {
+    return { success: false, message: 'Incorrect current password.' };
+  }
+
+  users[userIndex].password = newPassword;
+  setUsers(users);
+  addLog('Password Changed', { userId: user.id });
+
+  return { success: true };
+};
+
 // This is a helper function to check if the current user has a specific role.
 export const hasRole = (role: UserRole) => {
   const user = getCurrentUser();

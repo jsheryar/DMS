@@ -9,9 +9,9 @@ import { Label } from '@/components/ui/label';
 import { getBrandingSettings, setBrandingSettings, type BrandingSettings } from '@/lib/branding';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { getUsers } from '@/lib/auth';
+import { getUsers, changePassword } from '@/lib/auth';
 import type { Document } from '@/lib/types';
-import { isAdmin } from '@/lib/auth';
+import { isAdmin, getCurrentUser } from '@/lib/auth';
 import { setUsers } from '@/lib/auth';
 
 function BrandingSettingsCard() {
@@ -73,6 +73,89 @@ function BrandingSettingsCard() {
       </Card>
   )
 }
+
+function ChangePasswordCard() {
+  const { toast } = useToast();
+  const [currentPassword, setCurrentPassword] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+
+  const handlePasswordChange = () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Passwords do not match",
+        description: "Your new password and confirmation password do not match.",
+      });
+      return;
+    }
+    if (!newPassword || !currentPassword) {
+      toast({
+        variant: "destructive",
+        title: "Missing fields",
+        description: "Please fill out all password fields.",
+      });
+      return;
+    }
+
+    const user = getCurrentUser();
+    if (!user) {
+       toast({
+        variant: "destructive",
+        title: "Not authenticated",
+        description: "You must be logged in to change your password.",
+      });
+      return;
+    }
+
+    const result = changePassword(user.id, currentPassword, newPassword);
+
+    if (result.success) {
+      toast({
+        title: "Password Changed",
+        description: "Your password has been updated successfully.",
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.message,
+      });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Change Password</CardTitle>
+        <CardDescription>
+          Update your password here. It's a good practice to use a strong password.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="current-password">Current Password</Label>
+          <Input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="new-password">New Password</Label>
+          <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="confirm-password">Confirm New Password</Label>
+          <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+        </div>
+      </CardContent>
+      <CardFooter className="border-t px-6 py-4">
+        <Button onClick={handlePasswordChange}>Change Password</Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
 
 function BackupAndRestoreCard() {
     const { toast } = useToast();
@@ -174,16 +257,17 @@ function BackupAndRestoreCard() {
 }
 
 export default function SettingsPage() {
-  const [showAdminSettings, setShowAdminSettings] = React.useState(false);
+  const [isAdminUser, setIsAdminUser] = React.useState(false);
 
   React.useEffect(() => {
-    setShowAdminSettings(isAdmin());
+    setIsAdminUser(isAdmin());
   }, []);
 
   return (
     <div className="grid gap-6">
-      {showAdminSettings && <BrandingSettingsCard />}
-      {showAdminSettings && <BackupAndRestoreCard />}
+      <ChangePasswordCard />
+      {isAdminUser && <BrandingSettingsCard />}
+      {isAdminUser && <BackupAndRestoreCard />}
     </div>
   );
 }

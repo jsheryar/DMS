@@ -292,7 +292,7 @@ export default function UsersPage() {
        toast({
         variant: "destructive",
         title: "Cannot change own status",
-        description: "You cannot deactivate your own account.",
+        description: "You cannot deactivate your own account. This action is disabled to prevent self-lockout.",
       });
       return;
     }
@@ -362,7 +362,6 @@ export default function UsersPage() {
                       id={`status-switch-${user.id}`}
                       checked={user.status === 'active'}
                       onCheckedChange={() => handleToggleStatus(user.id)}
-                      disabled={user.id === currentUser?.id}
                       aria-label="Toggle user status"
                     />
                      <span className="capitalize">{user.status}</span>

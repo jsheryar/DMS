@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -447,32 +448,42 @@ function ManageCategoriesDialog({ categories, setCategories }: { categories: str
 
 // Custom hook for localStorage
 function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [storedValue, setStoredValue] = React.useState<T>(() => {
-        if (typeof window === 'undefined') {
-            return initialValue;
-        }
+    const [storedValue, setStoredValue] = React.useState<T>(initialValue);
+    const [isMounted, setIsMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setIsMounted(true);
         try {
             const item = window.localStorage.getItem(key);
-            return item ? JSON.parse(item) : initialValue;
+            if (item) {
+                setStoredValue(JSON.parse(item));
+            } else {
+                 window.localStorage.setItem(key, JSON.stringify(initialValue));
+            }
         } catch (error) {
             console.log(error);
-            return initialValue;
+            setStoredValue(initialValue);
         }
-    });
+    }, [key, initialValue]);
 
     const setValue = (value: T | ((val: T) => T)) => {
+        if (!isMounted) return;
         try {
             const valueToStore = value instanceof Function ? value(storedValue) : value;
             setStoredValue(valueToStore);
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(key, JSON.stringify(valueToStore));
-                 // Manually dispatch a storage event so other tabs can update.
-                window.dispatchEvent(new StorageEvent('storage', { key }));
-            }
+            window.localStorage.setItem(key, JSON.stringify(valueToStore));
+            // Manually dispatch a storage event so other tabs can update.
+            window.dispatchEvent(new StorageEvent('storage', { key }));
         } catch (error) {
             console.log(error);
         }
     };
+    
+    // Return initialValue on server-side
+    if (!isMounted) {
+      return [initialValue, () => {}];
+    }
+
     return [storedValue, setValue];
 }
 
@@ -485,8 +496,10 @@ function DashboardPageContent() {
   const [categories, setCategories] = useLocalStorage<string[]>('categories', initialCategories);
   const [isAdminOrOperator, setIsAdminOrOperator] = React.useState(false);
   const [isAdminUser, setIsAdminUser] = React.useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
 
   React.useEffect(() => {
+    setIsMounted(true);
     const user = getCurrentUser();
     if (!user) {
       router.push('/');
@@ -509,6 +522,10 @@ function DashboardPageContent() {
   const lettersCount = documents.filter(d => d.category === 'Letters').length;
   const notificationsCount = documents.filter(d => d.category === 'Notifications').length;
   const notesheetsCount = documents.filter(d => d.category === 'Notesheets').length;
+  
+  if (!isMounted) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <>

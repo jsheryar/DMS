@@ -16,6 +16,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Bar, BarChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, Cell } from 'recharts';
+
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -644,25 +646,42 @@ function DashboardPageContent() {
   }, [filteredDocuments, tab]);
 
 
-  const totalDocs = documents.length;
-  const lettersCount = documents.filter(d => d.category === 'Letters').length;
-  const notificationsCount = documents.filter(d => d.category === 'Notifications').length;
-  const notesheetsCount = documents.filter(d => d.category === 'Notesheets').length;
-  
+  const categoryCounts = React.useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    categories.forEach(cat => {
+      counts[cat] = 0;
+    });
+    documents.forEach(doc => {
+      if (counts[doc.category] !== undefined) {
+        counts[doc.category]++;
+      }
+    });
+    return counts;
+  }, [documents, categories]);
+
+  const chartData = React.useMemo(() => {
+    return categories.map(cat => ({
+      name: cat,
+      documents: categoryCounts[cat] || 0,
+    }));
+  }, [categories, categoryCounts]);
+
+  const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
   if (!isMounted) {
     return <div>Loading...</div>;
   }
 
   return (
-    <>
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4 mb-4">
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
             <File className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalDocs}</div>
+            <div className="text-2xl font-bold">{documents.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -671,7 +690,7 @@ function DashboardPageContent() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{lettersCount}</div>
+            <div className="text-2xl font-bold">{categoryCounts['Letters'] || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -680,7 +699,7 @@ function DashboardPageContent() {
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{notificationsCount}</div>
+            <div className="text-2xl font-bold">{categoryCounts['Notifications'] || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -689,7 +708,45 @@ function DashboardPageContent() {
             <StickyNote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{notesheetsCount}</div>
+            <div className="text-2xl font-bold">{categoryCounts['Notesheets'] || 0}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
+          <CardHeader>
+            <CardTitle>Document Overview</CardTitle>
+            <CardDescription>A bar chart showing the number of documents per category.</CardDescription>
+          </CardHeader>
+          <CardContent className="pl-2">
+             <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartData}>
+                  <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
+                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`}/>
+                  <Tooltip cursor={{fill: 'hsl(var(--muted))'}} contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
+                  <Bar dataKey="documents" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Category Distribution</CardTitle>
+             <CardDescription>A pie chart showing the document distribution.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={chartData} dataKey="documents" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+                   {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
@@ -749,7 +806,7 @@ function DashboardPageContent() {
           </TabsContent>
         ))}
       </Tabs>
-    </>
+    </div>
   );
 }
 
@@ -760,3 +817,5 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
+
+    

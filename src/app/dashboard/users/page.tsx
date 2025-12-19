@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, PlusCircle, Trash2 } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Trash2, KeyRound, UserCheck, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -42,8 +43,20 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser, isAdmin, getUsers, addUser, removeUser } from '@/lib/auth';
+import { getCurrentUser, isAdmin, getUsers, addUser, removeUser, adminChangeUserPassword, toggleUserStatus } from '@/lib/auth';
 import type { User, UserRole } from '@/lib/types';
+import { Switch } from '@/components/ui/switch';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
   const { toast } = useToast();
@@ -72,7 +85,6 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
         title: "User Added",
         description: `User ${name} has been created successfully.`,
       });
-      // Reset form and close dialog
       setName('');
       setEmail('');
       setPassword('');
@@ -149,6 +161,73 @@ function AddUserDialog({ onUserAdded }: { onUserAdded: (user: User) => void }) {
   );
 }
 
+function AdminChangePasswordDialog({ user, onPasswordChanged }: { user: User, onPasswordChanged: () => void }) {
+  const { toast } = useToast();
+  const [open, setOpen] = React.useState(false);
+  const [newPassword, setNewPassword] = React.useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) {
+      toast({
+        variant: "destructive",
+        title: "Missing field",
+        description: "Please enter a new password.",
+      });
+      return;
+    }
+    
+    const result = adminChangeUserPassword(user.id, newPassword);
+    
+    if (result.success) {
+      onPasswordChanged();
+      toast({
+        title: "Password Changed",
+        description: `Password for ${user.name} has been updated.`,
+      });
+      setNewPassword('');
+      setOpen(false);
+    } else {
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.message,
+      });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+          <KeyRound className="mr-2 h-4 w-4" />Change Password
+        </DropdownMenuItem>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[480px]">
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Change Password for {user.name}</DialogTitle>
+            <DialogDescription>
+              Enter a new password for this user. They will not be notified.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="new-password" className="text-right">
+                New Password
+              </Label>
+              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="col-span-3" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit">Set New Password</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function UsersPage() {
   const router = useRouter();
@@ -156,6 +235,10 @@ export default function UsersPage() {
   const [users, setUsers] = React.useState<User[]>([]);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   
+  const fetchUsers = React.useCallback(() => {
+    setUsers(getUsers());
+  }, []);
+
   React.useEffect(() => {
     const user = getCurrentUser();
     if (!user) {
@@ -172,8 +255,8 @@ export default function UsersPage() {
       return;
     }
     setCurrentUser(user);
-    setUsers(getUsers());
-  }, [router, toast]);
+    fetchUsers();
+  }, [router, toast, fetchUsers]);
 
   const handleUserAdded = (newUser: User) => {
     setUsers(prev => [...prev, newUser]);
@@ -190,7 +273,7 @@ export default function UsersPage() {
     }
     const result = removeUser(userId);
     if (result.success) {
-      setUsers(prev => prev.filter(u => u.id !== userId));
+      fetchUsers();
       toast({
         title: "User Removed",
         description: "The user has been successfully removed.",
@@ -204,14 +287,38 @@ export default function UsersPage() {
     }
   };
 
-  const [showPage, setShowPage] = React.useState(false);
-  React.useEffect(() => {
-    if (isAdmin()) {
-      setShowPage(true);
+  const handleToggleStatus = (userId: string) => {
+     if (userId === currentUser?.id) {
+       toast({
+        variant: "destructive",
+        title: "Cannot change own status",
+        description: "You cannot deactivate your own account.",
+      });
+      return;
     }
+    const result = toggleUserStatus(userId);
+    if (result.success) {
+      fetchUsers();
+      toast({
+        title: `User ${result.newStatus === 'active' ? 'Activated' : 'Deactivated'}`,
+        description: `The user account has been ${result.newStatus}.`,
+      });
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.message,
+      });
+    }
+  };
+
+
+  const [isAdminUser, setIsAdminUser] = React.useState(false);
+  React.useEffect(() => {
+    setIsAdminUser(isAdmin());
   }, []);
 
-  if (!showPage) {
+  if (!isAdminUser) {
     return null; 
   }
   
@@ -233,6 +340,7 @@ export default function UsersPage() {
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -240,13 +348,25 @@ export default function UsersPage() {
           </TableHeader>
           <TableBody>
             {users.map((user) => (
-              <TableRow key={user.id}>
+              <TableRow key={user.id} className={user.status === 'inactive' ? 'bg-muted/50 text-muted-foreground' : ''}>
                 <TableCell className="font-medium">{user.name}</TableCell>
                 <TableCell>{user.email}</TableCell>
                 <TableCell>
                   <Badge variant={user.role === 'admin' ? 'destructive' : 'secondary'}>
                     {user.role.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                   <div className="flex items-center gap-2">
+                     <Switch
+                      id={`status-switch-${user.id}`}
+                      checked={user.status === 'active'}
+                      onCheckedChange={() => handleToggleStatus(user.id)}
+                      disabled={user.id === currentUser?.id}
+                      aria-label="Toggle user status"
+                    />
+                     <span className="capitalize">{user.status}</span>
+                   </div>
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -258,9 +378,30 @@ export default function UsersPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onSelect={() => handleRemoveUser(user.id)} className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />Delete
-                      </DropdownMenuItem>
+                      <AdminChangePasswordDialog user={user} onPasswordChanged={fetchUsers} />
+                      <DropdownMenuSeparator />
+                       <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
+                               <Trash2 className="mr-2 h-4 w-4" />Delete
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the user account for {user.name}.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleRemoveUser(user.id)}>
+                                Continue
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

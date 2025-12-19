@@ -1,3 +1,4 @@
+
 export interface Document {
   id: string;
   title: string;
@@ -20,11 +21,13 @@ export type UserLog = {
 };
 
 export type UserRole = 'admin' | 'data-entry-operator' | 'viewer';
+export type UserStatus = 'active' | 'inactive';
 
 export type User = {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  status: UserStatus;
   password?: string;
 };

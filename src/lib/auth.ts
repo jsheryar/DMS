@@ -1,7 +1,7 @@
 
 'use client';
 import { addLog } from './logs';
-import type { User, UserRole } from './types';
+import type { User, UserRole, UserStatus } from './types';
 
 // IMPORTANT: This is a mock authentication system for local development and demonstration.
 // It is NOT secure and should NOT be used in a production environment.
@@ -11,9 +11,9 @@ const MOCK_USERS_KEY = 'mock_users_list';
 const SESSION_KEY = 'mock_user_session';
 
 const initialMockUsers: User[] = [
-  { id: '1', name: 'Admin User', email: 'admin@example.com', password: 'password123', role: 'admin' },
-  { id: '2', name: 'John Doe', email: 'johndoe@example.com', password: 'password123', role: 'viewer' },
-  { id: '3', name: 'Data Entry', email: 'data@example.com', password: 'password123', role: 'data-entry-operator' },
+  { id: '1', name: 'Admin User', email: 'admin@example.com', password: 'password123', role: 'admin', status: 'active' },
+  { id: '2', name: 'John Doe', email: 'johndoe@example.com', password: 'password123', role: 'viewer', status: 'active' },
+  { id: '3', name: 'Data Entry', email: 'data@example.com', password: 'password123', role: 'data-entry-operator', status: 'active' },
 ];
 
 // --- User Data Management ---
@@ -25,15 +25,15 @@ export const getUsers = (): User[] => {
   const usersJson = localStorage.getItem(MOCK_USERS_KEY);
   if (usersJson) {
     try {
-      return JSON.parse(usersJson);
+      // Ensure all users have a status, defaulting to active
+      const users = JSON.parse(usersJson) as User[];
+      return users.map(u => ({...u, status: u.status || 'active'}));
     } catch (e) {
       console.error("Failed to parse users from localStorage", e);
-      // If parsing fails, reset to initial users
       localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(initialMockUsers));
       return initialMockUsers;
     }
   }
-  // If no users in local storage, initialize with default
   localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(initialMockUsers));
   return initialMockUsers;
 };
@@ -44,13 +44,13 @@ export const setUsers = (users: User[]) => {
   }
 };
 
-export const addUser = (user: Omit<User, 'id'>) => {
+export const addUser = (user: Omit<User, 'id' | 'status'>) => {
   const users = getUsers();
   const existingUser = users.find((u: User) => u.email === user.email);
   if (existingUser) {
     return { success: false, message: 'User with this email already exists.' };
   }
-  const newUser: User = { ...user, id: String(Date.now()) };
+  const newUser: User = { ...user, id: String(Date.now()), status: 'active' };
   const updatedUsers = [...users, newUser];
   setUsers(updatedUsers);
   addLog('User Added', { newUserId: newUser.id, newUserEmail: newUser.email });
@@ -81,13 +81,15 @@ export const removeUser = (userId: string) => {
 export const mockLogin = (email: string, password: string): User | null => {
   const users = getUsers();
   const user = users.find((u: User) => u.email === email && u.password === password);
-  if (user) {
-    // In a real app, you would never store sensitive info like this in localStorage.
-    // This is only for the local mock setup.
+  if (user && user.status === 'active') {
     const { password, ...userToStore } = user;
     localStorage.setItem(SESSION_KEY, JSON.stringify(userToStore));
     addLog('User Logged In');
     return userToStore;
+  }
+   if (user && user.status === 'inactive') {
+    // Optionally, you could return a specific message for inactive users
+    return null;
   }
   return null;
 };
@@ -142,6 +144,37 @@ export const changePassword = (userId: string, currentPassword: string, newPassw
 
   return { success: true };
 };
+
+export const adminChangeUserPassword = (userId: string, newPassword: string) => {
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.id === userId);
+
+  if (userIndex === -1) {
+    return { success: false, message: "User not found." };
+  }
+  
+  users[userIndex].password = newPassword;
+  setUsers(users);
+  addLog('Admin Changed User Password', { targetUserId: userId });
+  return { success: true };
+};
+
+export const toggleUserStatus = (userId: string) => {
+  const users = getUsers();
+  const userIndex = users.findIndex(u => u.id === userId);
+
+  if (userIndex === -1) {
+    return { success: false, message: "User not found." };
+  }
+  
+  const currentStatus = users[userIndex].status;
+  const newStatus: UserStatus = currentStatus === 'active' ? 'inactive' : 'active';
+  users[userIndex].status = newStatus;
+  setUsers(users);
+  addLog('User Status Changed', { targetUserId: userId, newStatus });
+  return { success: true, newStatus };
+};
+
 
 // This is a helper function to check if the current user has a specific role.
 export const hasRole = (role: UserRole) => {

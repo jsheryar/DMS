@@ -139,6 +139,14 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
 
 function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
   const { toast } = useToast();
+  const [canView, setCanView] = React.useState(false);
+
+  React.useEffect(() => {
+    const user = getCurrentUser();
+    if(user) {
+        setCanView(true);
+    }
+  }, []);
 
   const handleDownload = (doc: Document) => {
     if (doc.fileUrl && doc.fileName) {
@@ -148,7 +156,6 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(doc.fileUrl); // Clean up the object URL
       toast({
         title: 'Download Started',
         description: `Your download for "${doc.title}" has started.`,
@@ -193,19 +200,21 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
               </TableCell>
               <TableCell className="hidden md:table-cell">{doc.date}</TableCell>
               <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Toggle menu</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <ViewDocumentDialog document={doc} />
-                    <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {canView && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button aria-haspopup="true" size="icon" variant="ghost">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Toggle menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <ViewDocumentDialog document={doc} />
+                      <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </TableCell>
             </TableRow>
           ))}
@@ -224,7 +233,16 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
   const [keywords, setKeywords] = React.useState('');
   const [file, setFile] = React.useState<File | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !category || !description || !keywords || !file) {
       toast({
@@ -235,30 +253,43 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
       return;
     }
 
-    const newDocument: Document = {
-      id: `DOC-${String(Date.now()).slice(-5)}`,
-      title,
-      category,
-      date: new Date().toISOString().split('T')[0],
-      description,
-      keywords,
-      fileName: file.name,
-      fileUrl: URL.createObjectURL(file),
-    };
-    onUpload(newDocument);
-    addLog('Document Uploaded', { documentId: newDocument.id, documentTitle: newDocument.title });
-    toast({
-      title: "Document Uploaded",
-      description: `${title} has been successfully uploaded.`,
-    });
+    try {
+        const fileUrl = await fileToDataUrl(file);
 
-    // Reset form and close dialog
-    setTitle('');
-    setCategory('');
-    setDescription('');
-    setKeywords('');
-    setFile(null);
-    setOpen(false);
+        const newDocument: Document = {
+            id: `DOC-${String(Date.now()).slice(-5)}`,
+            title,
+            category,
+            date: new Date().toISOString().split('T')[0],
+            description,
+            keywords,
+            fileName: file.name,
+            fileUrl,
+        };
+
+        onUpload(newDocument);
+        addLog('Document Uploaded', { documentId: newDocument.id, documentTitle: newDocument.title });
+        toast({
+            title: "Document Uploaded",
+            description: `${title} has been successfully uploaded.`,
+        });
+
+        // Reset form and close dialog
+        setTitle('');
+        setCategory('');
+        setDescription('');
+        setKeywords('');
+        setFile(null);
+        setOpen(false);
+
+    } catch (error) {
+        console.error("Error converting file to data URL", error);
+        toast({
+            variant: "destructive",
+            title: "File Upload Failed",
+            description: "There was an error processing your file. Please try again.",
+        });
+    }
   };
 
 
@@ -552,3 +583,5 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
+
+    

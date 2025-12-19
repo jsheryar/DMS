@@ -1,6 +1,4 @@
 
-
-
 'use client';
 
 import * as React from 'react';
@@ -744,7 +742,7 @@ function DashboardPageContent() {
               </CardContent>
                <CardFooter>
                  <div className="text-xs text-muted-foreground">
-                    Showing <strong>1-{documentsForCurrentTab.length}</strong> of <strong>{documentsForCurrentT ab.length}</strong> documents
+                    Showing <strong>1-{documentsForCurrentTab.length}</strong> of <strong>{documentsForCurrentTab.length}</strong> documents
                  </div>
                 </CardFooter>
             </Card>
@@ -762,7 +760,3 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
-
-    
-
-    

@@ -35,6 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Table,
@@ -59,6 +60,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -68,6 +79,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getCurrentUser, isAdmin, isDataEntryOperator } from '@/lib/auth';
 import { addLog } from '@/lib/logs';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const initialDocuments: Document[] = [
     {
@@ -177,16 +189,56 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
 }
 
 
-function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
+function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents: Document[], onDocumentsChange: (docs: Document[]) => void }) {
   const { toast } = useToast();
   const [canView, setCanView] = React.useState(false);
+  const [isAdminUser, setIsAdminUser] = React.useState(false);
+  const [selectedDocuments, setSelectedDocuments] = React.useState<string[]>([]);
+  const [documentToDelete, setDocumentToDelete] = React.useState<string | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = React.useState(false);
+  const [isBulkDeleteAlertOpen, setIsBulkDeleteAlertOpen] = React.useState(false);
 
   React.useEffect(() => {
     const user = getCurrentUser();
     if(user) {
         setCanView(true);
+        setIsAdminUser(isAdmin());
     }
   }, []);
+
+  const allDocuments = useLocalStorage<Document[]>('documents', initialDocuments)[0];
+
+  const handleSetDocumentToDelete = (docId: string) => {
+    setDocumentToDelete(docId);
+    setIsAlertOpen(true);
+  }
+
+  const handleDelete = () => {
+    if (!documentToDelete) return;
+
+    const updatedDocs = allDocuments.filter(d => d.id !== documentToDelete);
+    onDocumentsChange(updatedDocs);
+
+    addLog('Document Deleted', { documentId: documentToDelete });
+    toast({
+        title: "Document Deleted",
+        description: "The document has been successfully deleted.",
+    });
+    setDocumentToDelete(null);
+    setIsAlertOpen(false);
+  };
+  
+  const handleBulkDelete = () => {
+    const updatedDocs = allDocuments.filter(d => !selectedDocuments.includes(d.id));
+    onDocumentsChange(updatedDocs);
+    addLog('Bulk Documents Deleted', { documentIds: selectedDocuments });
+    toast({
+        title: "Documents Deleted",
+        description: `${selectedDocuments.length} documents have been successfully deleted.`,
+    });
+    setSelectedDocuments([]);
+    setIsBulkDeleteAlertOpen(false);
+  };
 
   const handleDownload = (doc: Document) => {
     if (doc.fileUrl && doc.fileName) {
@@ -219,11 +271,50 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
     }
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedDocuments(tableDocs.map(d => d.id));
+    } else {
+      setSelectedDocuments([]);
+    }
+  };
+
+  const handleSelectRow = (docId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedDocuments(prev => [...prev, docId]);
+    } else {
+      setSelectedDocuments(prev => prev.filter(id => id !== docId));
+    }
+  };
+  
+  const numSelected = selectedDocuments.length;
+  const rowCount = tableDocs.length;
+
   return (
     <>
+      {isAdminUser && numSelected > 0 && (
+          <div className="flex items-center gap-2 mb-4 px-1">
+              <Button variant="destructive" onClick={() => setIsBulkDeleteAlertOpen(true)}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Selected ({numSelected})
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                  {numSelected} of {rowCount} row(s) selected.
+              </span>
+          </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
+            {isAdminUser && (
+                <TableHead padding="checkbox">
+                    <Checkbox
+                        checked={rowCount > 0 && numSelected === rowCount}
+                        onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                        aria-label="Select all"
+                    />
+                </TableHead>
+            )}
             <TableHead className="hidden w-[100px] sm:table-cell">
               ID
             </TableHead>
@@ -237,7 +328,16 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
         </TableHeader>
         <TableBody>
           {tableDocs.length > 0 ? tableDocs.map((doc) => (
-            <TableRow key={doc.id}>
+            <TableRow key={doc.id} data-state={selectedDocuments.includes(doc.id) && "selected"}>
+              {isAdminUser && (
+                  <TableCell padding="checkbox">
+                      <Checkbox
+                          checked={selectedDocuments.includes(doc.id)}
+                          onCheckedChange={(checked) => handleSelectRow(doc.id, Boolean(checked))}
+                          aria-label="Select row"
+                      />
+                  </TableCell>
+              )}
               <TableCell className="hidden sm:table-cell font-medium">
                 {doc.id}
               </TableCell>
@@ -261,6 +361,21 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <ViewDocumentDialog document={doc} />
                       <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="mr-2 h-4 w-4" />Download</DropdownMenuItem>
+                       {isAdminUser && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              handleSetDocumentToDelete(doc.id);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -268,13 +383,41 @@ function DocumentTable({ documents: tableDocs }: { documents: Document[] }) {
             </TableRow>
           )) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={isAdminUser ? 6 : 5} className="h-24 text-center">
                 No documents found.
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
+       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the document.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDocumentToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={isBulkDeleteAlertOpen} onOpenChange={setIsBulkDeleteAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the {numSelected} selected documents.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleBulkDelete}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+       </AlertDialog>
     </>
   );
 }
@@ -668,7 +811,7 @@ function DashboardPageContent() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <DocumentTable documents={documentsForCurrentTab} />
+              <DocumentTable documents={documentsForCurrentTab} onDocumentsChange={setDocuments} />
             </CardContent>
             <CardFooter>
               <div className="text-xs text-muted-foreground">
@@ -685,7 +828,7 @@ function DashboardPageContent() {
                 <CardDescription>All documents categorized as {cat}.</CardDescription>
               </CardHeader>
               <CardContent>
-                <DocumentTable documents={documentsForCurrentTab} />
+                <DocumentTable documents={documentsForCurrentTab} onDocumentsChange={setDocuments} />
               </CardContent>
                <CardFooter>
                  <div className="text-xs text-muted-foreground">
@@ -707,3 +850,5 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
+
+    

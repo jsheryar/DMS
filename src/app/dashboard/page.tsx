@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Bar, BarChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Legend, Cell } from 'recharts';
+import * as XLSX from 'xlsx';
 
 
 import { Badge } from '@/components/ui/badge';
@@ -146,6 +147,29 @@ const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destruct
 
 function ViewDocumentDialog({ document: doc }: { document: Document }) {
   const { toast } = useToast();
+
+  const renderExcelAsHtml = (dataUrl: string): string => {
+    const base64 = dataUrl.split(',')[1];
+    const workbook = XLSX.read(base64, { type: 'base64' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const html = XLSX.utils.sheet_to_html(worksheet);
+    return `
+      <html>
+        <head>
+          <title>${doc.fileName || 'Excel Preview'}</title>
+          <style>
+            body { font-family: sans-serif; }
+            table { border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            thead { background-color: #f2f2f2; }
+          </style>
+        </head>
+        <body>${html}</body>
+      </html>
+    `;
+  };
+
   const handleView = () => {
     if (doc.fileUrl) {
        try {
@@ -153,13 +177,25 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
         if (isDataUrl) {
             const newWindow = window.open();
             if (newWindow) {
-                // For PDF, we can use an iframe
+                const isExcel = doc.fileName?.match(/\.(xlsx|xls)$/i);
+
                 if (doc.fileUrl.startsWith('data:application/pdf')) {
                     newWindow.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
                 } else if (doc.fileUrl.match(/^data:image\//)) {
                     newWindow.document.write(`<img src="${doc.fileUrl}" style="max-width: 100%;" />`);
+                } else if (isExcel) {
+                    const htmlContent = renderExcelAsHtml(doc.fileUrl);
+                    newWindow.document.write(htmlContent);
+                    newWindow.document.close();
                 } else {
-                     newWindow.document.write(`<p>Cannot preview this file type. Please download to view.</p><a href="${doc.fileUrl}" download="${doc.fileName || 'download'}">Download</a>`);
+                     newWindow.document.write(`
+                        <div style="font-family: sans-serif; padding: 2rem;">
+                            <p>Cannot preview this file type. Please download to view.</p>
+                            <a href="${doc.fileUrl}" download="${doc.fileName || 'download'}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+                                Download
+                            </a>
+                        </div>
+                     `);
                 }
             } else {
                  toast({ variant: 'destructive', title: "Popup blocked", description: "Please allow popups for this site to view the document." });

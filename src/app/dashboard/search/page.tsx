@@ -50,6 +50,7 @@ import { addLog } from '@/lib/logs';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
+import { getFile, deleteFile } from '@/lib/idb';
 
 const initialDocuments: Document[] = [];
 const initialCategories: string[] = ['Letters', 'Notifications', 'Notesheets'];
@@ -59,6 +60,22 @@ const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destruct
   Notifications: 'default',
   Notesheets: 'outline',
 };
+
+async function getFileUrl(doc: Document): Promise<string | undefined> {
+    if (doc.fileUrl) return doc.fileUrl; // Legacy support
+    if (doc.fileId) {
+        const file = await getFile(doc.fileId);
+        if (file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+    return undefined;
+}
 
 
 function ViewDocumentDialog({ document: doc }: { document: Document }) {
@@ -86,28 +103,29 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
     `;
   };
 
-  const handleView = () => {
-    if (doc.fileUrl) {
+  const handleView = async () => {
+    const fileUrl = await getFileUrl(doc);
+    if (fileUrl) {
        try {
-        const isDataUrl = doc.fileUrl.startsWith('data:');
+        const isDataUrl = fileUrl.startsWith('data:');
         if (isDataUrl) {
             const newWindow = window.open();
             if (newWindow) {
                 const isExcel = doc.fileName?.match(/\.(xlsx|xls)$/i);
 
-                if (doc.fileUrl.startsWith('data:application/pdf')) {
-                    newWindow.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                } else if (doc.fileUrl.match(/^data:image\//)) {
-                    newWindow.document.write(`<img src="${doc.fileUrl}" style="max-width: 100%;" />`);
+                if (fileUrl.startsWith('data:application/pdf')) {
+                    newWindow.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                } else if (fileUrl.match(/^data:image\//)) {
+                    newWindow.document.write(`<img src="${fileUrl}" style="max-width: 100%;" />`);
                 } else if (isExcel) {
-                    const htmlContent = renderExcelAsHtml(doc.fileUrl);
+                    const htmlContent = renderExcelAsHtml(fileUrl);
                     newWindow.document.write(htmlContent);
                     newWindow.document.close();
                 } else {
                      newWindow.document.write(`
                         <div style="font-family: sans-serif; padding: 2rem;">
                             <p>Cannot preview this file type. Please download to view.</p>
-                            <a href="${doc.fileUrl}" download="${doc.fileName || 'download'}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+                            <a href="${fileUrl}" download="${doc.fileName || 'download'}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
                                 Download
                             </a>
                         </div>
@@ -117,7 +135,7 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
                  toast({ variant: 'destructive', title: "Popup blocked", description: "Please allow popups for this site to view the document." });
             }
         } else {
-            window.open(doc.fileUrl, '_blank');
+            window.open(fileUrl, '_blank');
         }
        } catch (e) {
           console.error(e);
@@ -154,11 +172,12 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
     setIsAdminUser(isAdmin());
   }, []);
   
-  const handleDownload = (doc: Document) => {
-    if (doc.fileUrl && doc.fileName) {
+  const handleDownload = async (doc: Document) => {
+    const fileUrl = await getFileUrl(doc);
+    if (fileUrl && doc.fileName) {
       try {
         const link = document.createElement('a');
-        link.href = doc.fileUrl;
+        link.href = fileUrl;
         link.download = doc.fileName;
         document.body.appendChild(link);
         link.click();
@@ -190,8 +209,14 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
         setIsAlertOpen(true);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!documentToDelete) return;
+
+        const docToDelete = allDocuments.find(d => d.id === documentToDelete);
+        if (docToDelete?.fileId) {
+            await deleteFile(docToDelete.fileId);
+        }
+
         const updatedDocs = allDocuments.filter(d => d.id !== documentToDelete);
         setAllDocuments(updatedDocs);
         onDocumentsChange(updatedDocs);
@@ -205,7 +230,14 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
         setIsAlertOpen(false);
     };
 
-    const handleBulkDelete = () => {
+    const handleBulkDelete = async () => {
+        const docsToDelete = allDocuments.filter(d => selectedDocuments.includes(d.id));
+        for (const doc of docsToDelete) {
+            if (doc.fileId) {
+                await deleteFile(doc.fileId);
+            }
+        }
+        
         const updatedDocs = allDocuments.filter(d => !selectedDocuments.includes(d.id));
         setAllDocuments(updatedDocs);
         onDocumentsChange(updatedDocs);

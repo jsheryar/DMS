@@ -81,6 +81,7 @@ import { getCurrentUser, isAdmin, isDataEntryOperator } from '@/lib/auth';
 import { addLog } from '@/lib/logs';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { Checkbox } from '@/components/ui/checkbox';
+import { saveFile, getFile, deleteFile } from '@/lib/idb';
 
 const initialDocuments: Document[] = [
     {
@@ -90,8 +91,8 @@ const initialDocuments: Document[] = [
     date: '2023-06-30',
     description: 'Detailed financial report for the second quarter of 2023.',
     keywords: 'finance, report, q2',
-    fileUrl: 'data:text/plain;base64,VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IGRvY3VtZW50Lg==',
     fileName: 'sample.txt',
+    fileId: 'sample-txt-1',
   },
   {
     id: 'DOC-002',
@@ -100,8 +101,8 @@ const initialDocuments: Document[] = [
     date: '2023-07-15',
     description: 'Updated safety protocols for all office employees.',
     keywords: 'safety, office, protocols',
-    fileUrl: 'data:text/plain;base64,VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IGRvY3VtZW50Lg==',
     fileName: 'sample.txt',
+    fileId: 'sample-txt-2',
   },
   {
     id: 'DOC-003',
@@ -110,8 +111,8 @@ const initialDocuments: Document[] = [
     date: '2023-07-20',
     description: 'Approval notesheet for the first phase of Project Alpha.',
     keywords: 'project alpha, approval, phase 1',
-    fileUrl: 'data:text/plain;base64,VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IGRvY3VtZW50Lg==',
     fileName: 'sample.txt',
+    fileId: 'sample-txt-3',
   },
   {
     id: 'DOC-004',
@@ -120,8 +121,8 @@ const initialDocuments: Document[] = [
     date: '2023-08-01',
     description: 'Form for new employees to provide feedback on the onboarding process.',
     keywords: 'onboarding, feedback, employee',
-    fileUrl: 'data:text/plain;base64,VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IGRvY3VtZW50Lg==',
     fileName: 'sample.txt',
+    fileId: 'sample-txt-4',
   },
   {
     id: 'DOC-005',
@@ -130,8 +131,8 @@ const initialDocuments: Document[] = [
     date: '2023-08-05',
     description: 'The official company holiday schedule for the year 2024.',
     keywords: 'holiday, schedule, 2024',
-    fileUrl: 'data:text/plain;base64,VGhpcyBpcyBhIHNhbXBsZSB0ZXh0IGRvY3VtZW50Lg==',
     fileName: 'sample.txt',
+    fileId: 'sample-txt-5',
   },
 ];
 
@@ -144,6 +145,23 @@ const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destruct
   Notifications: 'default',
   Notesheets: 'outline',
 };
+
+async function getFileUrl(doc: Document): Promise<string | undefined> {
+    if (doc.fileUrl) return doc.fileUrl; // Already have a data URL (for small, legacy files)
+    if (doc.fileId) {
+        const file = await getFile(doc.fileId);
+        if (file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+    return undefined;
+}
+
 
 function ViewDocumentDialog({ document: doc }: { document: Document }) {
   const { toast } = useToast();
@@ -170,28 +188,29 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
     `;
   };
 
-  const handleView = () => {
-    if (doc.fileUrl) {
+  const handleView = async () => {
+    const fileUrl = await getFileUrl(doc);
+    if (fileUrl) {
        try {
-        const isDataUrl = doc.fileUrl.startsWith('data:');
+        const isDataUrl = fileUrl.startsWith('data:');
         if (isDataUrl) {
             const newWindow = window.open();
             if (newWindow) {
                 const isExcel = doc.fileName?.match(/\.(xlsx|xls)$/i);
 
-                if (doc.fileUrl.startsWith('data:application/pdf')) {
-                    newWindow.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                } else if (doc.fileUrl.match(/^data:image\//)) {
-                    newWindow.document.write(`<img src="${doc.fileUrl}" style="max-width: 100%;" />`);
+                if (fileUrl.startsWith('data:application/pdf')) {
+                    newWindow.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                } else if (fileUrl.match(/^data:image\//)) {
+                    newWindow.document.write(`<img src="${fileUrl}" style="max-width: 100%;" />`);
                 } else if (isExcel) {
-                    const htmlContent = renderExcelAsHtml(doc.fileUrl);
+                    const htmlContent = renderExcelAsHtml(fileUrl);
                     newWindow.document.write(htmlContent);
                     newWindow.document.close();
                 } else {
                      newWindow.document.write(`
                         <div style="font-family: sans-serif; padding: 2rem;">
                             <p>Cannot preview this file type. Please download to view.</p>
-                            <a href="${doc.fileUrl}" download="${doc.fileName || 'download'}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+                            <a href="${fileUrl}" download="${doc.fileName || 'download'}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
                                 Download
                             </a>
                         </div>
@@ -202,7 +221,7 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
             }
         } else {
             // It's a regular URL
-            window.open(doc.fileUrl, '_blank');
+            window.open(fileUrl, '_blank');
         }
        } catch (e) {
           console.error(e);
@@ -248,8 +267,13 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
     setIsAlertOpen(true);
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!documentToDelete) return;
+    
+    const docToDelete = allDocuments.find(d => d.id === documentToDelete);
+    if(docToDelete?.fileId) {
+        await deleteFile(docToDelete.fileId);
+    }
 
     const updatedDocs = allDocuments.filter(d => d.id !== documentToDelete);
     setAllDocuments(updatedDocs);
@@ -264,7 +288,14 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
     setIsAlertOpen(false);
   };
   
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
+    const docsToDelete = allDocuments.filter(d => selectedDocuments.includes(d.id));
+    for (const doc of docsToDelete) {
+        if (doc.fileId) {
+            await deleteFile(doc.fileId);
+        }
+    }
+
     const updatedDocs = allDocuments.filter(d => !selectedDocuments.includes(d.id));
     setAllDocuments(updatedDocs);
     onDocumentsChange(updatedDocs);
@@ -277,11 +308,12 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
     setIsBulkDeleteAlertOpen(false);
   };
 
-  const handleDownload = (doc: Document) => {
-    if (doc.fileUrl && doc.fileName) {
+  const handleDownload = async (doc: Document) => {
+    const fileUrl = await getFileUrl(doc);
+    if (fileUrl && doc.fileName) {
       try {
         const link = document.createElement('a');
-        link.href = doc.fileUrl;
+        link.href = fileUrl;
         link.download = doc.fileName;
         document.body.appendChild(link);
         link.click();
@@ -468,15 +500,6 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
   const [keywords, setKeywords] = React.useState('');
   const [file, setFile] = React.useState<File | null>(null);
 
-  const fileToDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !category || !description || !keywords || !file) {
@@ -489,7 +512,8 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
     }
 
     try {
-        const fileUrl = await fileToDataUrl(file);
+        const fileId = `file-${Date.now()}-${Math.random()}`;
+        await saveFile(fileId, file);
 
         const newDocument: Document = {
             id: `DOC-${String(Date.now()).slice(-5)}`,
@@ -499,7 +523,7 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
             description,
             keywords,
             fileName: file.name,
-            fileUrl,
+            fileId: fileId,
         };
 
         onUpload(newDocument);
@@ -518,11 +542,11 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
         setOpen(false);
 
     } catch (error) {
-        console.error("Error converting file to data URL", error);
+        console.error("Error saving file to IndexedDB", error);
         toast({
             variant: "destructive",
             title: "File Upload Failed",
-            description: "There was an error processing your file. Please try again.",
+            description: "There was an error saving your file. The browser storage may be full.",
         });
     }
   };
@@ -886,5 +910,3 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
-
-    

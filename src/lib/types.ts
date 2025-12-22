@@ -7,8 +7,9 @@ export interface Document {
   description: string;
   keywords: string;
   file?: File;
-  fileUrl?: string;
+  fileUrl?: string; // This can be a data URL for small files or a placeholder
   fileName?: string;
+  fileId?: string; // To reference the file in IndexedDB
 }
 
 export type UserLog = {

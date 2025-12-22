@@ -55,45 +55,39 @@ import { getFile, deleteFile } from '@/lib/idb';
 const initialDocuments: Document[] = [];
 const initialCategories: string[] = ['Letters', 'Notifications', 'Notesheets'];
 
-const categoryBadgeVariant: { [key: string]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
+const categoryBadgeVariant: {_id: string]: 'default' | 'secondary' | 'destructive' | 'outline' } = {
   Letters: 'secondary',
   Notifications: 'default',
   Notesheets: 'outline',
 };
 
 async function getFileUrl(doc: Document): Promise<string | undefined> {
-    if (doc.fileUrl) return doc.fileUrl; // Legacy support
     if (doc.fileId) {
         const file = await getFile(doc.fileId);
         if (file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+            return URL.createObjectURL(file);
         }
     }
-    return undefined;
+    return doc.fileUrl;
 }
 
 
 function ViewDocumentDialog({ document: doc }: { document: Document }) {
   const { toast } = useToast();
 
-  const renderExcelAsHtml = (dataUrl: string): string => {
-    const base64 = dataUrl.split(',')[1];
-    const workbook = XLSX.read(base64, { type: 'base64' });
+   const renderExcelAsHtml = async (file: File): Promise<string> => {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const html = XLSX.utils.sheet_to_html(worksheet);
-    return `
+     return `
       <html>
         <head>
           <title>${doc.fileName || 'Excel Preview'}</title>
           <style>
             body { font-family: sans-serif; }
-            table { border-collapse: collapse; }
+            table { border-collapse: collapse; width: 100%; }
             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
             thead { background-color: #f2f2f2; }
           </style>
@@ -101,42 +95,34 @@ function ViewDocumentDialog({ document: doc }: { document: Document }) {
         <body>${html}</body>
       </html>
     `;
-  };
+  }
 
   const handleView = async () => {
-    const fileUrl = await getFileUrl(doc);
-    if (fileUrl) {
+    if (!doc.fileId) {
+         toast({ variant: 'destructive', title: "File not found", description: "This document does not have an associated file." });
+         return;
+    }
+    
+    const file = await getFile(doc.fileId);
+
+    if (file) {
        try {
-        const isDataUrl = fileUrl.startsWith('data:');
-        if (isDataUrl) {
             const newWindow = window.open();
             if (newWindow) {
                 const isExcel = doc.fileName?.match(/\.(xlsx|xls)$/i);
-
-                if (fileUrl.startsWith('data:application/pdf')) {
-                    newWindow.document.write(`<iframe src="${fileUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                } else if (fileUrl.match(/^data:image\//)) {
-                    newWindow.document.write(`<img src="${fileUrl}" style="max-width: 100%;" />`);
-                } else if (isExcel) {
-                    const htmlContent = renderExcelAsHtml(fileUrl);
+                
+                if (isExcel) {
+                    const htmlContent = await renderExcelAsHtml(file);
                     newWindow.document.write(htmlContent);
                     newWindow.document.close();
                 } else {
-                     newWindow.document.write(`
-                        <div style="font-family: sans-serif; padding: 2rem;">
-                            <p>Cannot preview this file type. Please download to view.</p>
-                            <a href="${fileUrl}" download="${doc.fileName || 'download'}" style="display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
-                                Download
-                            </a>
-                        </div>
-                     `);
+                    const objectUrl = URL.createObjectURL(file);
+                    newWindow.document.write(`<iframe src="${objectUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
                 }
+
             } else {
                  toast({ variant: 'destructive', title: "Popup blocked", description: "Please allow popups for this site to view the document." });
             }
-        } else {
-            window.open(fileUrl, '_blank');
-        }
        } catch (e) {
           console.error(e);
           toast({ variant: 'destructive', title: "Error", description: "Could not open the file." });
@@ -173,15 +159,18 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
   }, []);
   
   const handleDownload = async (doc: Document) => {
-    const fileUrl = await getFileUrl(doc);
-    if (fileUrl && doc.fileName) {
+    const url = await getFileUrl(doc);
+    if (url && doc.fileName) {
       try {
         const link = document.createElement('a');
-        link.href = fileUrl;
+        link.href = url;
         link.download = doc.fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+         if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+        }
         toast({
           title: 'Download Started',
           description: `Your download for "${doc.title}" has started.`,
@@ -286,7 +275,7 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
                 <TableHeader>
                 <TableRow>
                     {isAdminUser && (
-                        <TableHead padding="checkbox">
+                        <TableHead>
                             <Checkbox
                                 checked={rowCount > 0 && numSelected === rowCount}
                                 onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
@@ -306,7 +295,7 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
                     tableDocs.map((doc) => (
                     <TableRow key={doc.id} data-state={selectedDocuments.includes(doc.id) && "selected"}>
                         {isAdminUser && (
-                           <TableCell padding="checkbox">
+                           <TableCell>
                                 <Checkbox
                                     checked={selectedDocuments.includes(doc.id)}
                                     onCheckedChange={(checked) => handleSelectRow(doc.id, Boolean(checked))}
@@ -521,3 +510,5 @@ export default function SearchPage() {
     </div>
   );
 }
+
+    

@@ -1,11 +1,31 @@
-import type {Metadata} from 'next';
+
+'use client';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import React from 'react';
+import { getBrandingSettings } from '@/lib/branding';
 
-export const metadata: Metadata = {
-  title: 'DocuSafe',
-  description: 'A secure, cloud-based office document management app.',
-};
+
+function AppManager({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  React.useEffect(() => {
+    const updateTitle = () => {
+      const settings = getBrandingSettings();
+      document.title = settings.departmentName || 'DocuSafe';
+    };
+    updateTitle();
+    window.addEventListener('storage', updateTitle);
+    return () => {
+      window.removeEventListener('storage', updateTitle);
+    };
+  }, []);
+
+  return <>{children}</>;
+}
+
 
 export default function RootLayout({
   children,
@@ -20,7 +40,9 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <AppManager>
+            {children}
+        </AppManager>
         <Toaster />
       </body>
     </html>

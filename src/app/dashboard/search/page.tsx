@@ -147,8 +147,8 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
   const [documentToDelete, setDocumentToDelete] = React.useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
   const [isBulkDeleteAlertOpen, setIsBulkDeleteAlertOpen] = React.useState(false);
+  const [allDocuments, setAllDocuments] = useLocalStorage<Document[]>('documents', initialDocuments);
   
-  const allDocuments = useLocalStorage<Document[]>('documents', initialDocuments)[0];
 
   React.useEffect(() => {
     setIsAdminUser(isAdmin());
@@ -193,6 +193,7 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
     const handleDelete = () => {
         if (!documentToDelete) return;
         const updatedDocs = allDocuments.filter(d => d.id !== documentToDelete);
+        setAllDocuments(updatedDocs);
         onDocumentsChange(updatedDocs);
 
         addLog('Document Deleted', { documentId: documentToDelete });
@@ -206,6 +207,7 @@ function ResultsTable({ documents: tableDocs, onDocumentsChange }: { documents: 
 
     const handleBulkDelete = () => {
         const updatedDocs = allDocuments.filter(d => !selectedDocuments.includes(d.id));
+        setAllDocuments(updatedDocs);
         onDocumentsChange(updatedDocs);
         addLog('Bulk Documents Deleted', { documentIds: selectedDocuments });
         toast({
@@ -487,5 +489,3 @@ export default function SearchPage() {
     </div>
   );
 }
-
-    

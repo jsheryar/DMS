@@ -233,6 +233,7 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
   const [documentToDelete, setDocumentToDelete] = React.useState<string | null>(null);
   const [isAlertOpen, setIsAlertOpen] = React.useState(false);
   const [isBulkDeleteAlertOpen, setIsBulkDeleteAlertOpen] = React.useState(false);
+  const [allDocuments, setAllDocuments] = useLocalStorage<Document[]>('documents', initialDocuments);
 
   React.useEffect(() => {
     const user = getCurrentUser();
@@ -241,8 +242,6 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
         setIsAdminUser(isAdmin());
     }
   }, []);
-
-  const allDocuments = useLocalStorage<Document[]>('documents', initialDocuments)[0];
 
   const handleSetDocumentToDelete = (docId: string) => {
     setDocumentToDelete(docId);
@@ -253,6 +252,7 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
     if (!documentToDelete) return;
 
     const updatedDocs = allDocuments.filter(d => d.id !== documentToDelete);
+    setAllDocuments(updatedDocs);
     onDocumentsChange(updatedDocs);
 
     addLog('Document Deleted', { documentId: documentToDelete });
@@ -266,6 +266,7 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
   
   const handleBulkDelete = () => {
     const updatedDocs = allDocuments.filter(d => !selectedDocuments.includes(d.id));
+    setAllDocuments(updatedDocs);
     onDocumentsChange(updatedDocs);
     addLog('Bulk Documents Deleted', { documentIds: selectedDocuments });
     toast({
@@ -549,8 +550,7 @@ function UploadDocumentDialog({ categories, onUpload }: { categories: string[], 
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="title" className="text-right">
                 Title
-              </Label>
-              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Q3 Marketing Report" className="col-span-3" />
+              </Label>              <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Q3 Marketing Report" className="col-span-3" />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="category" className="text-right">
@@ -886,5 +886,3 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
-
-    

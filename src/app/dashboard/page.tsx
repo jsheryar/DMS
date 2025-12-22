@@ -344,7 +344,7 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
         <TableHeader>
           <TableRow>
             {isAdminUser && (
-                <TableHead padding="checkbox">
+                <TableHead>
                     <Checkbox
                         checked={rowCount > 0 && numSelected === rowCount}
                         onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
@@ -367,7 +367,7 @@ function DocumentTable({ documents: tableDocs, onDocumentsChange }: { documents:
           {tableDocs.length > 0 ? tableDocs.map((doc) => (
             <TableRow key={doc.id} data-state={selectedDocuments.includes(doc.id) && "selected"}>
               {isAdminUser && (
-                  <TableCell padding="checkbox">
+                  <TableCell>
                       <Checkbox
                           checked={selectedDocuments.includes(doc.id)}
                           onCheckedChange={(checked) => handleSelectRow(doc.id, Boolean(checked))}
@@ -886,3 +886,5 @@ export default function DashboardPage() {
     </React.Suspense>
   )
 }
+
+    

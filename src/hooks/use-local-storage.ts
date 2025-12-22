@@ -5,46 +5,45 @@ import * as React from 'react';
 
 // Custom hook for localStorage
 export function useLocalStorage<T>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
-    const [storedValue, setStoredValue] = React.useState<T>(() => initialValue);
+    const [storedValue, setStoredValue] = React.useState<T>(() => {
+        if (typeof window === 'undefined') {
+            return initialValue;
+        }
+        try {
+            const item = window.localStorage.getItem(key);
+            return item ? JSON.parse(item) : initialValue;
+        } catch (error) {
+            console.error(error);
+            return initialValue;
+        }
+    });
+
     const [isMounted, setIsMounted] = React.useState(false);
 
     React.useEffect(() => {
         setIsMounted(true);
-        try {
-            const item = window.localStorage.getItem(key);
-            if (item) {
-                setStoredValue(JSON.parse(item));
-            } else {
-                 window.localStorage.setItem(key, JSON.stringify(initialValue));
-                 setStoredValue(initialValue);
-            }
-        } catch (error) {
-            console.log(error);
-            setStoredValue(initialValue);
-        }
-    }, [key, initialValue]);
-    
+    }, []);
+
     React.useEffect(() => {
       if (isMounted) {
         const handleStorageChange = (e: StorageEvent) => {
-          if (e.key === key) {
+          if (e.key === key && e.newValue) {
             try {
-              const item = window.localStorage.getItem(key);
-              if (item) {
-                setStoredValue(JSON.parse(item));
-              }
+                setStoredValue(JSON.parse(e.newValue));
             } catch (error) {
               console.log(error);
             }
+          } else if (e.key === key && !e.newValue) {
+             setStoredValue(initialValue);
           }
         };
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
       }
-    }, [isMounted, key]);
+    }, [isMounted, key, initialValue]);
 
 
-    const setValue = (value: T | ((val: T) => T)) => {
+    const setValue: React.Dispatch<React.SetStateAction<T>> = (value) => {
         if (!isMounted) return;
         try {
             const valueToStore = value instanceof Function ? value(storedValue) : value;
